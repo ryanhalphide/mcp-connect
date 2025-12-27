@@ -6,6 +6,7 @@ import { requestLoggingMiddleware } from './observability/requestLogger.js';
 import { serversApi } from './api/servers.js';
 import { toolsApi } from './api/tools.js';
 import { healthApi } from './api/health.js';
+import { webhookApi } from './api/webhook.js';
 import { connectionPool } from './core/pool.js';
 import { toolRegistry } from './core/registry.js';
 import { serverDatabase } from './storage/db.js';
@@ -34,6 +35,7 @@ app.onError((err, c) => {
 app.route('/api/servers', serversApi);
 app.route('/api/tools', toolsApi);
 app.route('/api/health', healthApi);
+app.route('/api/webhook', webhookApi);
 
 // Serve static files from public directory
 app.use('/*', serveStatic({ root: './public' }));
@@ -90,6 +92,7 @@ startup().then(() => {
           servers: `http://localhost:${info.port}/api/servers`,
           tools: `http://localhost:${info.port}/api/tools`,
           health: `http://localhost:${info.port}/api/health`,
+          webhook: `http://localhost:${info.port}/api/webhook`,
         },
       },
       'MCP Connect is running'
