@@ -1,6 +1,7 @@
 import { createMiddleware } from 'hono/factory';
 import { createChildLogger } from './logger.js';
 import { randomUUID } from 'node:crypto';
+import { trackRequest } from '../api/monitor.js';
 
 const requestLogger = createChildLogger({ module: 'http' });
 
@@ -27,6 +28,9 @@ export const requestLoggingMiddleware = createMiddleware(async (c, next) => {
     await next();
   } finally {
     const durationMs = Date.now() - startTime;
+
+    // Track request metrics
+    trackRequest(c.req.method, c.req.path, c.res.status, durationMs);
 
     // Log completed request
     requestLogger.info(

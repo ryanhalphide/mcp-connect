@@ -7,6 +7,7 @@ import { serversApi } from './api/servers.js';
 import { toolsApi } from './api/tools.js';
 import { healthApi } from './api/health.js';
 import { webhookApi } from './api/webhook.js';
+import { monitorApi } from './api/monitor.js';
 import { connectionPool } from './core/pool.js';
 import { toolRegistry } from './core/registry.js';
 import { serverDatabase } from './storage/db.js';
@@ -36,6 +37,7 @@ app.route('/api/servers', serversApi);
 app.route('/api/tools', toolsApi);
 app.route('/api/health', healthApi);
 app.route('/api/webhook', webhookApi);
+app.route('/api/monitor', monitorApi);
 
 // Serve static files from public directory
 app.use('/*', serveStatic({ root: './public' }));
@@ -93,6 +95,8 @@ startup().then(() => {
           tools: `http://localhost:${info.port}/api/tools`,
           health: `http://localhost:${info.port}/api/health`,
           webhook: `http://localhost:${info.port}/api/webhook`,
+          monitor: `http://localhost:${info.port}/api/monitor`,
+          dashboard: `http://localhost:${info.port}/api/monitor/dashboard`,
         },
       },
       'MCP Connect is running'
