@@ -1,0 +1,76 @@
+{
+  "servers": [
+    {
+      "name": "filesystem",
+      "description": "Local filesystem access via MCP",
+      "transport": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+      },
+      "auth": { "type": "none" },
+      "healthCheck": {
+        "enabled": true,
+        "intervalMs": 30000,
+        "timeoutMs": 5000
+      },
+      "rateLimits": {
+        "requestsPerMinute": 60,
+        "requestsPerDay": 10000
+      },
+      "metadata": {
+        "tags": ["filesystem", "local"],
+        "category": "storage",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "name": "fetch",
+      "description": "HTTP fetch capabilities via MCP",
+      "transport": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-fetch"]
+      },
+      "auth": { "type": "none" },
+      "healthCheck": {
+        "enabled": true,
+        "intervalMs": 30000,
+        "timeoutMs": 5000
+      },
+      "rateLimits": {
+        "requestsPerMinute": 30,
+        "requestsPerDay": 5000
+      },
+      "metadata": {
+        "tags": ["http", "fetch", "web"],
+        "category": "network",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "name": "memory",
+      "description": "In-memory key-value storage via MCP",
+      "transport": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-memory"]
+      },
+      "auth": { "type": "none" },
+      "healthCheck": {
+        "enabled": true,
+        "intervalMs": 60000,
+        "timeoutMs": 3000
+      },
+      "rateLimits": {
+        "requestsPerMinute": 120,
+        "requestsPerDay": 50000
+      },
+      "metadata": {
+        "tags": ["memory", "storage", "kv"],
+        "category": "storage",
+        "version": "1.0.0"
+      }
+    }
+  ]
+}

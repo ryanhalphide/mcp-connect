@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Connect Dashboard</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      color: #e4e4e7;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 600;
+    }
+
+    .version {
+      color: #a1a1aa;
+      font-size: 14px;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(34, 197, 94, 0.2);
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      border-radius: 20px;
+      font-size: 14px;
+      color: #22c55e;
+    }
+
+    .status-badge.error {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #ef4444;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: currentColor;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    }
+
+    .stat-label {
+      color: #a1a1aa;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 36px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .section {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .refresh-btn {
+      background: rgba(99, 102, 241, 0.2);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      color: #818cf8;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .refresh-btn:hover {
+      background: rgba(99, 102, 241, 0.3);
+    }
+
+    .server-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 16px;
+    }
+
+    .server-card {
+      background: rgba(0,0,0,0.2);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .server-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .server-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .server-name {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .server-status {
+      margin-left: auto;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .server-status.connected {
+      background: rgba(34, 197, 94, 0.2);
+      color: #22c55e;
+    }
+
+    .server-status.error {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+    }
+
+    .server-status.disconnected {
+      background: rgba(161, 161, 170, 0.2);
+      color: #a1a1aa;
+    }
+
+    .server-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .server-detail {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .server-detail-label {
+      color: #71717a;
+    }
+
+    .server-detail-value {
+      color: #e4e4e7;
+    }
+
+    .tools-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 12px;
+    }
+
+    .tool-card {
+      background: rgba(0,0,0,0.2);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tool-card:hover {
+      border-color: rgba(99, 102, 241, 0.5);
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .tool-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #818cf8;
+      margin-bottom: 6px;
+      font-family: 'Monaco', 'Menlo', monospace;
+    }
+
+    .tool-description {
+      font-size: 13px;
+      color: #a1a1aa;
+      line-height: 1.4;
+    }
+
+    .tool-server {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #71717a;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tool-server-badge {
+      background: rgba(255,255,255,0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .search-box {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      color: #e4e4e7;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    .search-box:focus {
+      outline: none;
+      border-color: rgba(99, 102, 241, 0.5);
+    }
+
+    .search-box::placeholder {
+      color: #71717a;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #a1a1aa;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: #1a1a2e;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: #a1a1aa;
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    .schema-view {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      color: #a1a1aa;
+    }
+
+    .invoke-section {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .invoke-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #818cf8;
+      margin-bottom: 12px;
+    }
+
+    .params-input {
+      width: 100%;
+      min-height: 120px;
+      padding: 12px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #e4e4e7;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+      resize: vertical;
+      margin-bottom: 12px;
+    }
+
+    .params-input:focus {
+      outline: none;
+      border-color: rgba(99, 102, 241, 0.5);
+    }
+
+    .invoke-btn {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .invoke-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+    }
+
+    .invoke-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .invoke-btn.loading {
+      pointer-events: none;
+    }
+
+    .result-section {
+      margin-top: 16px;
+    }
+
+    .result-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .result-title.success {
+      color: #22c55e;
+    }
+
+    .result-title.error {
+      color: #ef4444;
+    }
+
+    .result-view {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .result-view.success {
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      color: #86efac;
+    }
+
+    .result-view.error {
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .clear-btn {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #f87171;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .clear-btn:hover {
+      background: rgba(239, 68, 68, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">
+        <div class="logo-icon">⚡</div>
+        <div>
+          <h1>MCP Connect</h1>
+          <div class="version" id="version">v0.1.0</div>
+        </div>
+      </div>
+      <div class="status-badge" id="status-badge">
+        <div class="status-dot"></div>
+        <span id="status-text">Loading...</span>
+      </div>
+    </header>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Connected Servers</div>
+        <div class="stat-value" id="server-count">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Registered Tools</div>
+        <div class="stat-value" id="tool-count">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Uptime</div>
+        <div class="stat-value" id="uptime">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Last Updated</div>
+        <div class="stat-value" id="last-updated" style="font-size: 18px;">-</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <h2 class="section-title">🖥️ Servers</h2>
+        <button class="refresh-btn" onclick="refreshData()">↻ Refresh</button>
+      </div>
+      <div class="server-grid" id="servers-container">
+        <div class="loading">
+          <div class="spinner"></div>
+          Loading servers...
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <h2 class="section-title">🛠️ Tools</h2>
+        <span id="tools-count-label" style="color: #a1a1aa; font-size: 14px;"></span>
+      </div>
+      <input type="text" class="search-box" id="tool-search" placeholder="Search tools by name or description...">
+      <div class="tools-list" id="tools-container">
+        <div class="loading">
+          <div class="spinner"></div>
+          Loading tools...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="tool-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-tool-name">Tool Details</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div id="modal-body"></div>
+      <div class="invoke-section">
+        <div class="invoke-title">▶ Invoke Tool</div>
+        <textarea class="params-input" id="params-input" placeholder='Enter parameters as JSON, e.g.:
+{
+  "path": "/tmp"
+}'></textarea>
+        <div class="btn-group">
+          <button class="invoke-btn" id="invoke-btn" onclick="invokeTool()">
+            <span id="invoke-btn-text">⚡ Invoke</span>
+          </button>
+          <button class="clear-btn" onclick="clearResult()">Clear Result</button>
+        </div>
+        <div class="result-section" id="result-section" style="display: none;">
+          <div class="result-title" id="result-title">Result</div>
+          <div class="result-view" id="result-view"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '/api';
+    let allTools = [];
+    let currentTool = null;
+
+    async function fetchHealth() {
+      try {
+        const res = await fetch(`${API_BASE}/health`);
+        const json = await res.json();
+
+        if (json.success) {
+          const data = json.data;
+          document.getElementById('status-text').textContent = data.status === 'healthy' ? 'Healthy' : data.status;
+          document.getElementById('status-badge').className = data.status === 'healthy' ? 'status-badge' : 'status-badge error';
+          document.getElementById('server-count').textContent = data.servers?.connected || 0;
+          document.getElementById('tool-count').textContent = data.tools?.registered || 0;
+          document.getElementById('uptime').textContent = formatUptime(data.uptime);
+          document.getElementById('version').textContent = `v${data.version}`;
+          document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+        }
+      } catch (err) {
+        document.getElementById('status-text').textContent = 'Error';
+        document.getElementById('status-badge').className = 'status-badge error';
+      }
+    }
+
+    async function fetchServers() {
+      try {
+        const res = await fetch(`${API_BASE}/servers`);
+        const json = await res.json();
+
+        if (json.success) {
+          renderServers(json.data);
+        }
+      } catch (err) {
+        document.getElementById('servers-container').innerHTML = '<div class="loading">Failed to load servers</div>';
+      }
+    }
+
+    async function fetchTools() {
+      try {
+        const res = await fetch(`${API_BASE}/tools`);
+        const json = await res.json();
+
+        if (json.success) {
+          allTools = json.data.tools;
+          document.getElementById('tools-count-label').textContent = `${allTools.length} tools available`;
+          renderTools(allTools);
+        }
+      } catch (err) {
+        document.getElementById('tools-container').innerHTML = '<div class="loading">Failed to load tools</div>';
+      }
+    }
+
+    function renderServers(servers) {
+      const container = document.getElementById('servers-container');
+
+      if (!servers || servers.length === 0) {
+        container.innerHTML = '<div class="loading">No servers configured</div>';
+        return;
+      }
+
+      container.innerHTML = servers.map(server => `
+        <div class="server-card">
+          <div class="server-header">
+            <div class="server-icon">${server.name === 'filesystem' ? '📁' : server.name === 'memory' ? '🧠' : '🔌'}</div>
+            <div class="server-name">${server.name}</div>
+            <div class="server-status ${server.connectionStatus || 'disconnected'}">${server.connectionStatus || 'unknown'}</div>
+          </div>
+          <div class="server-details">
+            <div class="server-detail">
+              <span class="server-detail-label">Transport</span>
+              <span class="server-detail-value">${server.transport?.type || '-'}</span>
+            </div>
+            <div class="server-detail">
+              <span class="server-detail-label">Tools</span>
+              <span class="server-detail-value">${server.toolCount || 0}</span>
+            </div>
+            <div class="server-detail">
+              <span class="server-detail-label">Rate Limit</span>
+              <span class="server-detail-value">${server.rateLimits ? `${server.rateLimits.requestsPerMinute}/min` : 'None'}</span>
+            </div>
+            <div class="server-detail">
+              <span class="server-detail-label">Auth</span>
+              <span class="server-detail-value">${server.auth?.type || 'none'}</span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderTools(tools) {
+      const container = document.getElementById('tools-container');
+
+      if (!tools || tools.length === 0) {
+        container.innerHTML = '<div class="loading">No tools available</div>';
+        return;
+      }
+
+      container.innerHTML = tools.map(tool => `
+        <div class="tool-card" onclick="showToolDetails('${tool.name}')">
+          <div class="tool-name">${tool.name}</div>
+          <div class="tool-description">${tool.description || 'No description'}</div>
+          <div class="tool-server">
+            <span class="tool-server-badge">${tool.serverName}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function showToolDetails(toolName) {
+      const tool = allTools.find(t => t.name === toolName);
+      if (!tool) return;
+
+      currentTool = tool;
+      document.getElementById('modal-tool-name').textContent = tool.name;
+      document.getElementById('modal-body').innerHTML = `
+        <p style="margin-bottom: 16px; color: #a1a1aa;">${tool.description || 'No description'}</p>
+        <div style="margin-bottom: 12px;">
+          <strong style="color: #818cf8;">Server:</strong> ${tool.serverName}
+        </div>
+        <div style="margin-bottom: 12px;">
+          <strong style="color: #818cf8;">Input Schema:</strong>
+        </div>
+        <div class="schema-view">${JSON.stringify(tool.inputSchema, null, 2)}</div>
+      `;
+
+      // Reset invoke section
+      document.getElementById('params-input').value = generateDefaultParams(tool.inputSchema);
+      document.getElementById('result-section').style.display = 'none';
+      document.getElementById('invoke-btn').disabled = false;
+      document.getElementById('invoke-btn-text').textContent = '⚡ Invoke';
+
+      document.getElementById('tool-modal').classList.add('active');
+    }
+
+    function generateDefaultParams(schema) {
+      if (!schema || !schema.properties) return '{}';
+
+      const params = {};
+      const required = schema.required || [];
+
+      for (const [key, prop] of Object.entries(schema.properties)) {
+        if (required.includes(key)) {
+          if (prop.type === 'string') params[key] = '';
+          else if (prop.type === 'number' || prop.type === 'integer') params[key] = 0;
+          else if (prop.type === 'boolean') params[key] = false;
+          else if (prop.type === 'array') params[key] = [];
+          else if (prop.type === 'object') params[key] = {};
+        }
+      }
+
+      return Object.keys(params).length > 0 ? JSON.stringify(params, null, 2) : '{}';
+    }
+
+    async function invokeTool() {
+      if (!currentTool) return;
+
+      const paramsInput = document.getElementById('params-input').value;
+      const invokeBtn = document.getElementById('invoke-btn');
+      const invokeBtnText = document.getElementById('invoke-btn-text');
+      const resultSection = document.getElementById('result-section');
+      const resultTitle = document.getElementById('result-title');
+      const resultView = document.getElementById('result-view');
+
+      // Parse params
+      let params;
+      try {
+        params = paramsInput.trim() ? JSON.parse(paramsInput) : {};
+      } catch (e) {
+        resultSection.style.display = 'block';
+        resultTitle.className = 'result-title error';
+        resultTitle.innerHTML = '❌ Error';
+        resultView.className = 'result-view error';
+        resultView.textContent = `Invalid JSON: ${e.message}`;
+        return;
+      }
+
+      // Show loading state
+      invokeBtn.disabled = true;
+      invokeBtnText.textContent = '⏳ Invoking...';
+      invokeBtn.classList.add('loading');
+
+      try {
+        const res = await fetch(`${API_BASE}/tools/${encodeURIComponent(currentTool.name)}/invoke`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            params: params
+          })
+        });
+
+        const json = await res.json();
+
+        resultSection.style.display = 'block';
+
+        if (json.success) {
+          resultTitle.className = 'result-title success';
+          resultTitle.innerHTML = '✅ Success';
+          resultView.className = 'result-view success';
+          resultView.textContent = JSON.stringify(json.data, null, 2);
+        } else {
+          resultTitle.className = 'result-title error';
+          resultTitle.innerHTML = '❌ Error';
+          resultView.className = 'result-view error';
+          resultView.textContent = json.error || 'Unknown error';
+        }
+      } catch (e) {
+        resultSection.style.display = 'block';
+        resultTitle.className = 'result-title error';
+        resultTitle.innerHTML = '❌ Error';
+        resultView.className = 'result-view error';
+        resultView.textContent = `Request failed: ${e.message}`;
+      } finally {
+        invokeBtn.disabled = false;
+        invokeBtnText.textContent = '⚡ Invoke';
+        invokeBtn.classList.remove('loading');
+      }
+    }
+
+    function clearResult() {
+      document.getElementById('result-section').style.display = 'none';
+      document.getElementById('params-input').value = currentTool ? generateDefaultParams(currentTool.inputSchema) : '{}';
+    }
+
+    function closeModal() {
+      document.getElementById('tool-modal').classList.remove('active');
+      currentTool = null;
+    }
+
+    function formatUptime(seconds) {
+      if (!seconds) return '-';
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      return `${minutes}m`;
+    }
+
+    function refreshData() {
+      fetchHealth();
+      fetchServers();
+      fetchTools();
+    }
+
+    // Search functionality
+    document.getElementById('tool-search').addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      const filtered = allTools.filter(tool =>
+        tool.name.toLowerCase().includes(query) ||
+        (tool.description && tool.description.toLowerCase().includes(query))
+      );
+      renderTools(filtered);
+      document.getElementById('tools-count-label').textContent = `${filtered.length} of ${allTools.length} tools`;
+    });
+
+    // Close modal on outside click
+    document.getElementById('tool-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'tool-modal') closeModal();
+    });
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    // Initial load
+    refreshData();
+
+    // Auto-refresh every 30 seconds
+    setInterval(fetchHealth, 30000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { requestLoggingMiddleware } from './observability/requestLogger.js';
+import { serversApi } from './api/servers.js';
+import { toolsApi } from './api/tools.js';
+import { healthApi } from './api/health.js';
+import { connectionPool } from './core/pool.js';
+import { toolRegistry } from './core/registry.js';
+import { serverDatabase } from './storage/db.js';
+import { logger } from './observability/logger.js';
+
+const app = new Hono();
+
+// Middleware
+app.use('*', cors());
+app.use('*', requestLoggingMiddleware);
+
+// Error handling
+app.onError((err, c) => {
+  logger.error({ error: err.message, stack: err.stack }, 'Unhandled error');
+  return c.json(
+    {
+      success: false,
+      error: err.message,
+      timestamp: new Date().toISOString(),
+    },
+    500
+  );
+});
+
+// Mount API routes
+app.route('/api/servers', serversApi);
+app.route('/api/tools', toolsApi);
+app.route('/api/health', healthApi);
+
+// Serve static files from public directory
+app.use('/*', serveStatic({ root: './public' }));
+
+// Startup function
+async function startup() {
+  logger.info('Starting MCP Connect...');
+
+  // Auto-connect to enabled servers
+  const servers = serverDatabase.getAllServers(true);
+  logger.info({ serverCount: servers.length }, 'Found enabled servers');
+
+  for (const server of servers) {
+    try {
+      logger.info({ serverId: server.id, serverName: server.name }, 'Auto-connecting to server');
+      await connectionPool.connect(server);
+      await toolRegistry.registerServer(server);
+    } catch (error) {
+      logger.error(
+        { serverId: server.id, serverName: server.name, error },
+        'Failed to auto-connect to server'
+      );
+    }
+  }
+
+  const toolCount = toolRegistry.getToolCount();
+  logger.info({ toolCount }, 'Tools registered');
+}
+
+// Shutdown function
+async function shutdown() {
+  logger.info('Shutting down MCP Connect...');
+
+  await connectionPool.disconnectAll();
+  serverDatabase.close();
+
+  logger.info('Shutdown complete');
+  process.exit(0);
+}
+
+// Handle shutdown signals
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+
+// Start server
+const port = parseInt(process.env.PORT || '3000', 10);
+
+startup().then(() => {
+  serve({ fetch: app.fetch, port }, (info) => {
+    logger.info(
+      {
+        port: info.port,
+        endpoints: {
+          servers: `http://localhost:${info.port}/api/servers`,
+          tools: `http://localhost:${info.port}/api/tools`,
+          health: `http://localhost:${info.port}/api/health`,
+        },
+      },
+      'MCP Connect is running'
+    );
+  });
+});
+
+export { app };
