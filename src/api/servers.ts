@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { MCPServerConfigSchema, type ApiResponse, type MCPServerConfig } from '../core/types.js';
+import { MCPServerConfigSchema, type ApiResponse } from '../core/types.js';
 import { serverDatabase } from '../storage/db.js';
 import { connectionPool } from '../core/pool.js';
 import { toolRegistry } from '../core/registry.js';

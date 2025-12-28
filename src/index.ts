@@ -1,13 +1,16 @@
+import 'dotenv/config';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { requestLoggingMiddleware } from './observability/requestLogger.js';
+import { authMiddleware } from './middleware/auth.js';
 import { serversApi } from './api/servers.js';
 import { toolsApi } from './api/tools.js';
 import { healthApi } from './api/health.js';
 import { webhookApi } from './api/webhook.js';
 import { monitorApi } from './api/monitor.js';
+import { keysApi } from './api/keys.js';
 import { connectionPool } from './core/pool.js';
 import { toolRegistry } from './core/registry.js';
 import { serverDatabase } from './storage/db.js';
@@ -32,11 +35,26 @@ app.onError((err, c) => {
   );
 });
 
-// Mount API routes
-app.route('/api/servers', serversApi);
-app.route('/api/tools', toolsApi);
+// Mount public API routes (no auth required)
 app.route('/api/health', healthApi);
+
+// Mount API key management routes (master key required)
+app.route('/api/keys', keysApi);
+
+// Mount protected API routes (API key required)
+app.use('/api/servers/*', authMiddleware);
+app.route('/api/servers', serversApi);
+
+app.use('/api/tools/*', authMiddleware);
+app.route('/api/tools', toolsApi);
+
+app.use('/api/webhook/invoke/*', authMiddleware);
 app.route('/api/webhook', webhookApi);
+
+// Mount monitoring routes with optional auth (dashboard public, sensitive endpoints protected)
+app.use('/api/monitor/stats', authMiddleware);
+app.use('/api/monitor/requests', authMiddleware);
+app.use('/api/monitor/tools', authMiddleware);
 app.route('/api/monitor', monitorApi);
 
 // Serve static files from public directory
@@ -91,12 +109,17 @@ startup().then(() => {
       {
         port: info.port,
         endpoints: {
-          servers: `http://localhost:${info.port}/api/servers`,
-          tools: `http://localhost:${info.port}/api/tools`,
           health: `http://localhost:${info.port}/api/health`,
-          webhook: `http://localhost:${info.port}/api/webhook`,
+          keys: `http://localhost:${info.port}/api/keys`,
+          servers: `http://localhost:${info.port}/api/servers (auth required)`,
+          tools: `http://localhost:${info.port}/api/tools (auth required)`,
+          webhook: `http://localhost:${info.port}/api/webhook (auth required)`,
           monitor: `http://localhost:${info.port}/api/monitor`,
           dashboard: `http://localhost:${info.port}/api/monitor/dashboard`,
+        },
+        authentication: {
+          masterKey: process.env.MASTER_API_KEY ? 'configured' : 'NOT CONFIGURED',
+          keysEndpoint: `http://localhost:${info.port}/api/keys (requires master key)`,
         },
       },
       'MCP Connect is running'

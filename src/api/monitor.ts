@@ -3,10 +3,9 @@ import type { ApiResponse } from '../core/types.js';
 import { connectionPool } from '../core/pool.js';
 import { toolRegistry } from '../core/registry.js';
 import { serverDatabase } from '../storage/db.js';
-import { rateLimiter } from '../core/rateLimiter.js';
 import { createChildLogger } from '../observability/logger.js';
 
-const logger = createChildLogger({ module: 'api-monitor' });
+const _logger = createChildLogger({ module: 'api-monitor' });
 
 export const monitorApi = new Hono();
 
