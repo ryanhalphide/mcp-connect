@@ -7,6 +7,10 @@ import { requestLoggingMiddleware } from './observability/requestLogger.js';
 import { authMiddleware } from './middleware/auth.js';
 import { serversApi } from './api/servers.js';
 import { toolsApi } from './api/tools.js';
+import { resourcesApi } from './api/resources.js';
+import { promptsApi } from './api/prompts.js';
+import { searchApi } from './api/search.js';
+import { samplingApi } from './api/sampling.js';
 import { healthApi } from './api/health.js';
 import { webhookApi } from './api/webhook.js';
 import { monitorApi } from './api/monitor.js';
@@ -16,14 +20,24 @@ import { favoritesApi } from './api/favorites.js';
 import { usageHistoryApi } from './api/usageHistory.js';
 import { cacheApi } from './api/cache.js';
 import { auditApi } from './api/audit.js';
+import { templatesApi } from './api/templates.js';
+import { webhookSubscriptionsApi } from './api/webhookSubscriptions.js';
+import { sseApi } from './api/sse.js';
+import { prometheusApi } from './api/prometheus.js';
 import { connectionPool } from './core/pool.js';
 import { toolRegistry } from './core/registry.js';
+import { resourceRegistry } from './core/resourceRegistry.js';
+import { promptRegistry } from './core/promptRegistry.js';
 import { serverDatabase } from './storage/db.js';
 import { logger } from './observability/logger.js';
 import { loadServersFromConfig } from './seed/loadServers.js';
 import { initializeRateLimiter, shutdownRateLimiter } from './core/rateLimiterFactory.js';
 import { initializeCache, shutdownCache } from './core/cacheFactory.js';
+import { initializeCircuitBreaker } from './core/circuitBreakerFactory.js';
 import { initializeAuditLogger } from './observability/auditLog.js';
+import { registerBuiltInTemplates } from './seed/builtInTemplates.js';
+import { initializeWebhookStore } from './storage/webhooks.js';
+import { webhookDeliveryService } from './core/webhookDelivery.js';
 
 const app = new Hono();
 
@@ -57,6 +71,18 @@ app.route('/api/servers', serversApi);
 app.use('/api/tools/*', authMiddleware);
 app.route('/api/tools', toolsApi);
 
+app.use('/api/resources/*', authMiddleware);
+app.route('/api/resources', resourcesApi);
+
+app.use('/api/prompts/*', authMiddleware);
+app.route('/api/prompts', promptsApi);
+
+app.use('/api/search/*', authMiddleware);
+app.route('/api/search', searchApi);
+
+app.use('/api/sampling/*', authMiddleware);
+app.route('/api/sampling', samplingApi);
+
 app.use('/api/webhook/invoke/*', authMiddleware);
 app.route('/api/webhook', webhookApi);
 
@@ -76,6 +102,21 @@ app.route('/api/cache', cacheApi);
 // Mount audit log routes (requires auth)
 app.use('/api/audit/*', authMiddleware);
 app.route('/api/audit', auditApi);
+
+// Mount templates API (requires auth for write operations)
+app.use('/api/templates/*', authMiddleware);
+app.route('/api/templates', templatesApi);
+
+// Mount webhook subscriptions API (requires auth)
+app.use('/api/webhooks/subscriptions/*', authMiddleware);
+app.route('/api/webhooks/subscriptions', webhookSubscriptionsApi);
+
+// Mount SSE streaming API (requires auth for events stream)
+app.use('/api/sse/events', authMiddleware);
+app.route('/api/sse', sseApi);
+
+// Mount Prometheus metrics endpoint (public - standard for metrics scraping)
+app.route('/metrics', prometheusApi);
 
 // Mount monitoring routes with optional auth (dashboard public, sensitive endpoints protected)
 app.use('/api/monitor/stats', authMiddleware);
@@ -110,10 +151,26 @@ async function startup() {
   initializeCache();
   logger.info('Response cache initialized');
 
+  // Initialize enhanced circuit breaker (after migrations)
+  logger.info('Initializing enhanced circuit breaker...');
+  initializeCircuitBreaker();
+  logger.info('Enhanced circuit breaker initialized');
+
   // Initialize audit logger (after migrations)
   logger.info('Initializing audit logger...');
   initializeAuditLogger(serverDatabase.getDatabase());
   logger.info('Audit logger initialized');
+
+  // Initialize webhook store and delivery service (after migrations)
+  logger.info('Initializing webhook service...');
+  initializeWebhookStore(serverDatabase.getDatabase());
+  webhookDeliveryService.start();
+  logger.info('Webhook service initialized');
+
+  // Register built-in server templates
+  logger.info('Registering built-in templates...');
+  registerBuiltInTemplates();
+  logger.info('Built-in templates registered');
 
   // Load servers from config file if present
   const loadedCount = loadServersFromConfig();
@@ -130,6 +187,42 @@ async function startup() {
       logger.info({ serverId: server.id, serverName: server.name }, 'Auto-connecting to server');
       await connectionPool.connect(server);
       await toolRegistry.registerServer(server);
+
+      // Discover and register resources and prompts
+      const client = connectionPool.getClient(server.id);
+      if (client) {
+        // Register resources
+        try {
+          const { listResources } = await import('./mcp/client.js');
+          const resources = await listResources(client);
+          resourceRegistry.registerResources(server, resources);
+          logger.info(
+            { serverId: server.id, serverName: server.name, resourceCount: resources.length },
+            'Resources registered'
+          );
+        } catch (error) {
+          logger.warn(
+            { serverId: server.id, serverName: server.name, error },
+            'Failed to register resources (server may not support resources)'
+          );
+        }
+
+        // Register prompts
+        try {
+          const { listPrompts } = await import('./mcp/client.js');
+          const prompts = await listPrompts(client);
+          promptRegistry.registerPrompts(server, prompts);
+          logger.info(
+            { serverId: server.id, serverName: server.name, promptCount: prompts.length },
+            'Prompts registered'
+          );
+        } catch (error) {
+          logger.warn(
+            { serverId: server.id, serverName: server.name, error },
+            'Failed to register prompts (server may not support prompts)'
+          );
+        }
+      }
     } catch (error) {
       logger.error(
         { serverId: server.id, serverName: server.name, error },
@@ -139,12 +232,17 @@ async function startup() {
   }
 
   const toolCount = toolRegistry.getToolCount();
-  logger.info({ toolCount }, 'Tools registered');
+  const resourceCount = resourceRegistry.getResourceCount();
+  const promptCount = promptRegistry.getPromptCount();
+  logger.info({ toolCount, resourceCount, promptCount }, 'Tools, resources, and prompts registered');
 }
 
 // Shutdown function
 async function shutdown() {
   logger.info('Shutting down MCP Connect...');
+
+  // Stop webhook delivery service
+  webhookDeliveryService.stop();
 
   // Shutdown cache (cleanup interval)
   shutdownCache();
@@ -176,12 +274,20 @@ startup().then(() => {
           keys: `http://localhost:${info.port}/api/keys`,
           servers: `http://localhost:${info.port}/api/servers (auth required)`,
           tools: `http://localhost:${info.port}/api/tools (auth required)`,
+          resources: `http://localhost:${info.port}/api/resources (auth required)`,
+          prompts: `http://localhost:${info.port}/api/prompts (auth required)`,
+          search: `http://localhost:${info.port}/api/search (auth required)`,
+          sampling: `http://localhost:${info.port}/api/sampling (auth required)`,
           webhook: `http://localhost:${info.port}/api/webhook (auth required)`,
           groups: `http://localhost:${info.port}/api/groups (auth required)`,
           favorites: `http://localhost:${info.port}/api/favorites (auth required)`,
           usage: `http://localhost:${info.port}/api/usage (auth required)`,
           cache: `http://localhost:${info.port}/api/cache (auth required)`,
           audit: `http://localhost:${info.port}/api/audit (auth required)`,
+          templates: `http://localhost:${info.port}/api/templates (auth required)`,
+          webhooks: `http://localhost:${info.port}/api/webhooks/subscriptions (auth required)`,
+          sse: `http://localhost:${info.port}/api/sse/events (auth required)`,
+          metrics: `http://localhost:${info.port}/metrics`,
           monitor: `http://localhost:${info.port}/api/monitor`,
           dashboard: `http://localhost:${info.port}/api/monitor/dashboard`,
         },

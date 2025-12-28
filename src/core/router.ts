@@ -7,6 +7,7 @@ import { getEnhancedRateLimiter } from './rateLimiterFactory.js';
 import { getServerRateLimitConfig } from './rateLimiterEnhanced.js';
 import { getCache } from './cacheFactory.js';
 import { circuitBreakerRegistry, CircuitBreakerOpenError } from './circuitBreaker.js';
+import { getEnhancedCircuitBreaker } from './circuitBreakerFactory.js';
 import { callTool } from '../mcp/client.js';
 import { createChildLogger } from '../observability/logger.js';
 import { serverDatabase } from '../storage/db.js';
@@ -48,8 +49,17 @@ export class ToolRouter {
       };
     }
 
-    // Check circuit breaker first
-    const breaker = circuitBreakerRegistry.getBreaker(toolEntry.serverId);
+    // Check circuit breaker first - use enhanced breaker if available
+    let breaker;
+    try {
+      const enhancedBreakers = getEnhancedCircuitBreaker();
+      breaker = enhancedBreakers.getBreaker(toolEntry.serverId);
+    } catch (error) {
+      // Fall back to legacy circuit breaker if enhanced not initialized
+      logger.debug({ error }, 'Enhanced circuit breaker not available, using legacy');
+      breaker = circuitBreakerRegistry.getBreaker(toolEntry.serverId);
+    }
+
     if (!breaker.canExecute()) {
       const retryAfterMs = breaker.getTimeUntilRetry();
       const error = new CircuitBreakerOpenError(toolEntry.serverId, retryAfterMs);

@@ -20,6 +20,16 @@ const CreateServerSchema = MCPServerConfigSchema.omit({
 // Update server input schema (partial, without id, createdAt)
 const UpdateServerSchema = CreateServerSchema.partial();
 
+// Bulk operations schema
+const BulkServerIdsSchema = z.object({
+  serverIds: z.array(z.string().uuid()).min(1).max(100),
+});
+
+const BulkUpdateSchema = z.object({
+  serverIds: z.array(z.string().uuid()).min(1).max(100),
+  updates: UpdateServerSchema,
+});
+
 // Helper to create API response
 function apiResponse<T>(data: T, success = true): ApiResponse<T> {
   return {
@@ -36,6 +46,442 @@ function errorResponse(error: string): ApiResponse {
     timestamp: new Date().toISOString(),
   };
 }
+
+// =============================================================================
+// BULK OPERATIONS - Must be defined before parameterized routes
+// =============================================================================
+
+// POST /servers/bulk/connect - Connect to multiple servers
+serversApi.post('/bulk/connect', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { serverIds } = BulkServerIdsSchema.parse(body);
+
+    const results: Array<{
+      serverId: string;
+      serverName: string;
+      success: boolean;
+      error?: string;
+      toolCount?: number;
+    }> = [];
+
+    for (const id of serverIds) {
+      const server = serverDatabase.getServer(id);
+      if (!server) {
+        results.push({
+          serverId: id,
+          serverName: 'unknown',
+          success: false,
+          error: 'Server not found',
+        });
+        continue;
+      }
+
+      try {
+        await connectionPool.connect(server);
+        const tools = await toolRegistry.registerServer(server);
+
+        // Discover and register resources and prompts
+        let resourceCount = 0;
+        let promptCount = 0;
+        const client = connectionPool.getClient(id);
+        if (client) {
+          // Register resources
+          try {
+            const { listResources } = await import('../mcp/client.js');
+            const { resourceRegistry } = await import('../core/resourceRegistry.js');
+            const resources = await listResources(client);
+            resourceRegistry.registerResources(server, resources);
+            resourceCount = resources.length;
+          } catch (error) {
+            logger.warn(
+              { serverId: id, serverName: server.name, error },
+              'Failed to register resources (server may not support resources)'
+            );
+          }
+
+          // Register prompts
+          try {
+            const { listPrompts } = await import('../mcp/client.js');
+            const { promptRegistry } = await import('../core/promptRegistry.js');
+            const prompts = await listPrompts(client);
+            promptRegistry.registerPrompts(server, prompts);
+            promptCount = prompts.length;
+          } catch (error) {
+            logger.warn(
+              { serverId: id, serverName: server.name, error },
+              'Failed to register prompts (server may not support prompts)'
+            );
+          }
+        }
+
+        results.push({
+          serverId: id,
+          serverName: server.name,
+          success: true,
+          toolCount: tools.length,
+        });
+        logger.info(
+          { serverId: id, serverName: server.name, toolCount: tools.length, resourceCount, promptCount },
+          'Server connected via bulk operation'
+        );
+      } catch (error) {
+        results.push({
+          serverId: id,
+          serverName: server.name,
+          success: false,
+          error: error instanceof Error ? error.message : 'Connection failed',
+        });
+      }
+    }
+
+    const successCount = results.filter((r) => r.success).length;
+    const failureCount = results.filter((r) => !r.success).length;
+
+    logger.info({ successCount, failureCount, total: serverIds.length }, 'Bulk connect completed');
+
+    return c.json(apiResponse({
+      results,
+      summary: {
+        total: serverIds.length,
+        success: successCount,
+        failed: failureCount,
+      },
+    }));
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      c.status(400);
+      return c.json(errorResponse(`Validation error: ${error.message}`));
+    }
+    throw error;
+  }
+});
+
+// POST /servers/bulk/disconnect - Disconnect from multiple servers
+serversApi.post('/bulk/disconnect', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { serverIds } = BulkServerIdsSchema.parse(body);
+
+    const results: Array<{
+      serverId: string;
+      serverName: string;
+      success: boolean;
+      error?: string;
+    }> = [];
+
+    for (const id of serverIds) {
+      const server = serverDatabase.getServer(id);
+      const serverName = server?.name ?? 'unknown';
+
+      try {
+        await connectionPool.disconnect(id);
+        toolRegistry.unregisterServer(id);
+
+        // Unregister resources and prompts
+        const { resourceRegistry } = await import('../core/resourceRegistry.js');
+        const { promptRegistry } = await import('../core/promptRegistry.js');
+        resourceRegistry.unregisterServer(id);
+        promptRegistry.unregisterServer(id);
+
+        results.push({
+          serverId: id,
+          serverName,
+          success: true,
+        });
+        logger.info({ serverId: id, serverName }, 'Server disconnected via bulk operation');
+      } catch (error) {
+        results.push({
+          serverId: id,
+          serverName,
+          success: false,
+          error: error instanceof Error ? error.message : 'Disconnect failed',
+        });
+      }
+    }
+
+    const successCount = results.filter((r) => r.success).length;
+    const failureCount = results.filter((r) => !r.success).length;
+
+    logger.info({ successCount, failureCount, total: serverIds.length }, 'Bulk disconnect completed');
+
+    return c.json(apiResponse({
+      results,
+      summary: {
+        total: serverIds.length,
+        success: successCount,
+        failed: failureCount,
+      },
+    }));
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      c.status(400);
+      return c.json(errorResponse(`Validation error: ${error.message}`));
+    }
+    throw error;
+  }
+});
+
+// POST /servers/bulk/enable - Enable multiple servers
+serversApi.post('/bulk/enable', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { serverIds } = BulkServerIdsSchema.parse(body);
+
+    const results: Array<{
+      serverId: string;
+      serverName: string;
+      success: boolean;
+      error?: string;
+    }> = [];
+
+    for (const id of serverIds) {
+      try {
+        const updated = serverDatabase.updateServer(id, { enabled: true });
+        if (!updated) {
+          results.push({
+            serverId: id,
+            serverName: 'unknown',
+            success: false,
+            error: 'Server not found',
+          });
+        } else {
+          results.push({
+            serverId: id,
+            serverName: updated.name,
+            success: true,
+          });
+        }
+      } catch (error) {
+        results.push({
+          serverId: id,
+          serverName: 'unknown',
+          success: false,
+          error: error instanceof Error ? error.message : 'Enable failed',
+        });
+      }
+    }
+
+    const successCount = results.filter((r) => r.success).length;
+    logger.info({ successCount, total: serverIds.length }, 'Bulk enable completed');
+
+    return c.json(apiResponse({
+      results,
+      summary: {
+        total: serverIds.length,
+        success: successCount,
+        failed: serverIds.length - successCount,
+      },
+    }));
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      c.status(400);
+      return c.json(errorResponse(`Validation error: ${error.message}`));
+    }
+    throw error;
+  }
+});
+
+// POST /servers/bulk/disable - Disable multiple servers
+serversApi.post('/bulk/disable', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { serverIds } = BulkServerIdsSchema.parse(body);
+
+    const results: Array<{
+      serverId: string;
+      serverName: string;
+      success: boolean;
+      error?: string;
+    }> = [];
+
+    for (const id of serverIds) {
+      try {
+        // Disconnect first if connected
+        await connectionPool.disconnect(id);
+        toolRegistry.unregisterServer(id);
+
+        const updated = serverDatabase.updateServer(id, { enabled: false });
+        if (!updated) {
+          results.push({
+            serverId: id,
+            serverName: 'unknown',
+            success: false,
+            error: 'Server not found',
+          });
+        } else {
+          results.push({
+            serverId: id,
+            serverName: updated.name,
+            success: true,
+          });
+        }
+      } catch (error) {
+        results.push({
+          serverId: id,
+          serverName: 'unknown',
+          success: false,
+          error: error instanceof Error ? error.message : 'Disable failed',
+        });
+      }
+    }
+
+    const successCount = results.filter((r) => r.success).length;
+    logger.info({ successCount, total: serverIds.length }, 'Bulk disable completed');
+
+    return c.json(apiResponse({
+      results,
+      summary: {
+        total: serverIds.length,
+        success: successCount,
+        failed: serverIds.length - successCount,
+      },
+    }));
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      c.status(400);
+      return c.json(errorResponse(`Validation error: ${error.message}`));
+    }
+    throw error;
+  }
+});
+
+// PUT /servers/bulk - Update multiple servers
+serversApi.put('/bulk', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { serverIds, updates } = BulkUpdateSchema.parse(body);
+
+    const results: Array<{
+      serverId: string;
+      serverName: string;
+      success: boolean;
+      error?: string;
+    }> = [];
+
+    for (const id of serverIds) {
+      try {
+        const updated = serverDatabase.updateServer(id, updates);
+        if (!updated) {
+          results.push({
+            serverId: id,
+            serverName: 'unknown',
+            success: false,
+            error: 'Server not found',
+          });
+        } else {
+          results.push({
+            serverId: id,
+            serverName: updated.name,
+            success: true,
+          });
+          logger.info({ serverId: id, serverName: updated.name }, 'Server updated via bulk operation');
+        }
+      } catch (error) {
+        results.push({
+          serverId: id,
+          serverName: 'unknown',
+          success: false,
+          error: error instanceof Error ? error.message : 'Update failed',
+        });
+      }
+    }
+
+    const successCount = results.filter((r) => r.success).length;
+    const failureCount = results.filter((r) => !r.success).length;
+
+    logger.info({ successCount, failureCount, total: serverIds.length }, 'Bulk update completed');
+
+    return c.json(apiResponse({
+      results,
+      summary: {
+        total: serverIds.length,
+        success: successCount,
+        failed: failureCount,
+      },
+    }));
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      c.status(400);
+      return c.json(errorResponse(`Validation error: ${error.message}`));
+    }
+    throw error;
+  }
+});
+
+// DELETE /servers/bulk - Delete multiple servers
+serversApi.delete('/bulk', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { serverIds } = BulkServerIdsSchema.parse(body);
+
+    const results: Array<{
+      serverId: string;
+      serverName: string;
+      success: boolean;
+      error?: string;
+    }> = [];
+
+    for (const id of serverIds) {
+      const server = serverDatabase.getServer(id);
+      const serverName = server?.name ?? 'unknown';
+
+      try {
+        // Disconnect if connected
+        await connectionPool.disconnect(id);
+        toolRegistry.unregisterServer(id);
+
+        const deleted = serverDatabase.deleteServer(id);
+        if (!deleted) {
+          results.push({
+            serverId: id,
+            serverName,
+            success: false,
+            error: 'Server not found',
+          });
+        } else {
+          results.push({
+            serverId: id,
+            serverName,
+            success: true,
+          });
+          logger.info({ serverId: id, serverName }, 'Server deleted via bulk operation');
+        }
+      } catch (error) {
+        results.push({
+          serverId: id,
+          serverName,
+          success: false,
+          error: error instanceof Error ? error.message : 'Delete failed',
+        });
+      }
+    }
+
+    const successCount = results.filter((r) => r.success).length;
+    const failureCount = results.filter((r) => !r.success).length;
+
+    logger.info({ successCount, failureCount, total: serverIds.length }, 'Bulk delete completed');
+
+    return c.json(apiResponse({
+      results,
+      summary: {
+        total: serverIds.length,
+        success: successCount,
+        failed: failureCount,
+      },
+    }));
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      c.status(400);
+      return c.json(errorResponse(`Validation error: ${error.message}`));
+    }
+    throw error;
+  }
+});
+
+// =============================================================================
+// STANDARD CRUD OPERATIONS
+// =============================================================================
 
 // GET /servers - List all servers
 serversApi.get('/', (c) => {
@@ -154,12 +600,51 @@ serversApi.post('/:id/connect', async (c) => {
     await connectionPool.connect(server);
     const tools = await toolRegistry.registerServer(server);
 
-    logger.info({ serverId: id, toolCount: tools.length }, 'Server connected via API');
+    // Discover and register resources and prompts
+    let resourceCount = 0;
+    let promptCount = 0;
+    const client = connectionPool.getClient(id);
+    if (client) {
+      // Register resources
+      try {
+        const { listResources } = await import('../mcp/client.js');
+        const { resourceRegistry } = await import('../core/resourceRegistry.js');
+        const resources = await listResources(client);
+        resourceRegistry.registerResources(server, resources);
+        resourceCount = resources.length;
+      } catch (error) {
+        logger.warn(
+          { serverId: id, serverName: server.name, error },
+          'Failed to register resources (server may not support resources)'
+        );
+      }
+
+      // Register prompts
+      try {
+        const { listPrompts } = await import('../mcp/client.js');
+        const { promptRegistry } = await import('../core/promptRegistry.js');
+        const prompts = await listPrompts(client);
+        promptRegistry.registerPrompts(server, prompts);
+        promptCount = prompts.length;
+      } catch (error) {
+        logger.warn(
+          { serverId: id, serverName: server.name, error },
+          'Failed to register prompts (server may not support prompts)'
+        );
+      }
+    }
+
+    logger.info(
+      { serverId: id, toolCount: tools.length, resourceCount, promptCount },
+      'Server connected via API'
+    );
 
     return c.json(apiResponse({
       connected: true,
       status: connectionPool.getConnectionStatus(id),
       tools: tools.map((t) => t.name),
+      resourceCount,
+      promptCount,
     }));
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Connection failed';
@@ -175,7 +660,16 @@ serversApi.post('/:id/disconnect', async (c) => {
   await connectionPool.disconnect(id);
   toolRegistry.unregisterServer(id);
 
-  logger.info({ serverId: id }, 'Server disconnected via API');
+  // Unregister resources and prompts
+  const { resourceRegistry } = await import('../core/resourceRegistry.js');
+  const { promptRegistry } = await import('../core/promptRegistry.js');
+  const unregisteredResources = resourceRegistry.unregisterServer(id);
+  const unregisteredPrompts = promptRegistry.unregisterServer(id);
+
+  logger.info(
+    { serverId: id, unregisteredResources, unregisteredPrompts },
+    'Server disconnected via API'
+  );
 
   return c.json(apiResponse({
     disconnected: true,

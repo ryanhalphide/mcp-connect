@@ -1,5 +1,4 @@
 import { Hono } from 'hono';
-import { z } from 'zod';
 import type { ApiResponse } from '../core/types.js';
 import { usageHistoryStore } from '../storage/usageHistory.js';
 import { toolRegistry } from '../core/registry.js';

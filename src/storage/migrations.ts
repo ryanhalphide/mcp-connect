@@ -154,5 +154,92 @@ export const migration001: Migration = {
   },
 };
 
+// Migration 002: Webhook subscriptions and deliveries
+export const migration002: Migration = {
+  version: 2,
+  name: 'webhook_tables',
+  up: (db) => {
+    // Webhook subscriptions table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS webhook_subscriptions (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        url TEXT NOT NULL,
+        events_json TEXT NOT NULL,
+        secret TEXT,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        server_filter_json TEXT,
+        retry_count INTEGER NOT NULL DEFAULT 3,
+        retry_delay_ms INTEGER NOT NULL DEFAULT 1000,
+        timeout_ms INTEGER NOT NULL DEFAULT 10000,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_webhook_subscriptions_enabled
+        ON webhook_subscriptions(enabled);
+    `);
+
+    // Webhook deliveries table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS webhook_deliveries (
+        id TEXT PRIMARY KEY,
+        subscription_id TEXT NOT NULL,
+        event TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('pending', 'success', 'failed')),
+        attempts INTEGER NOT NULL DEFAULT 0,
+        last_attempt_at TEXT,
+        response_status INTEGER,
+        response_body TEXT,
+        error TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (subscription_id) REFERENCES webhook_subscriptions(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_subscription
+        ON webhook_deliveries(subscription_id);
+      CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status
+        ON webhook_deliveries(status);
+      CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_created
+        ON webhook_deliveries(created_at);
+    `);
+
+    logger.info('Migration 002: Webhook tables created successfully');
+  },
+};
+
+// Migration 003: Semantic search embeddings
+export const migration003: Migration = {
+  version: 3,
+  name: 'semantic_search',
+  up: (db) => {
+    // Semantic embeddings table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS semantic_embeddings (
+        id TEXT PRIMARY KEY,
+        entity_type TEXT NOT NULL CHECK(entity_type IN ('tool', 'resource', 'prompt')),
+        entity_id TEXT NOT NULL,
+        entity_name TEXT NOT NULL,
+        text_content TEXT NOT NULL,
+        embedding_json TEXT NOT NULL,
+        embedding_model TEXT NOT NULL DEFAULT 'text-embedding-3-small',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(entity_type, entity_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_semantic_entity_type
+        ON semantic_embeddings(entity_type);
+      CREATE INDEX IF NOT EXISTS idx_semantic_entity_id
+        ON semantic_embeddings(entity_id);
+      CREATE INDEX IF NOT EXISTS idx_semantic_entity_name
+        ON semantic_embeddings(entity_name);
+    `);
+
+    logger.info('Migration 003: Semantic search tables created successfully');
+  },
+};
+
 // Export all migrations in order
-export const allMigrations: Migration[] = [migration001];
+export const allMigrations: Migration[] = [migration001, migration002, migration003];

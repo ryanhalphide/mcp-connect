@@ -12,10 +12,14 @@ const mockDeleteServer = vi.fn();
 const mockConnect = vi.fn();
 const mockDisconnect = vi.fn();
 const mockGetConnectionStatus = vi.fn(() => 'disconnected');
+const mockGetClient = vi.fn(() => null);
 const mockRegisterServer = vi.fn();
 const mockUnregisterServer = vi.fn();
 const mockGetServerToolCount = vi.fn(() => 0);
 const mockFindToolsByServer = vi.fn(() => []);
+const mockRegisterResources = vi.fn();
+const mockUnregisterResources = vi.fn(() => 0);
+const mockListResources = vi.fn(() => Promise.resolve([]));
 
 vi.mock('../../src/storage/db.js', () => ({
   serverDatabase: {
@@ -33,7 +37,19 @@ vi.mock('../../src/core/pool.js', () => ({
     connect: (config: any) => mockConnect(config),
     disconnect: (id: string) => mockDisconnect(id),
     getConnectionStatus: (id: string) => mockGetConnectionStatus(id),
+    getClient: (id: string) => mockGetClient(id),
   },
+}));
+
+vi.mock('../../src/core/resourceRegistry.js', () => ({
+  resourceRegistry: {
+    registerResources: (server: any, resources: any) => mockRegisterResources(server, resources),
+    unregisterServer: (id: string) => mockUnregisterResources(id),
+  },
+}));
+
+vi.mock('../../src/mcp/client.js', () => ({
+  listResources: () => mockListResources(),
 }));
 
 vi.mock('../../src/core/registry.js', () => ({

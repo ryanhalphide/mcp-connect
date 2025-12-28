@@ -143,3 +143,23 @@ export async function callTool(client: Client, toolName: string, args: Record<st
   const response = await client.callTool({ name: toolName, arguments: args });
   return response;
 }
+
+export async function listResources(client: Client) {
+  const response = await client.listResources();
+  return response.resources;
+}
+
+export async function readResource(client: Client, uri: string) {
+  const response = await client.readResource({ uri });
+  return response;
+}
+
+export async function listPrompts(client: Client) {
+  const response = await client.listPrompts();
+  return response.prompts;
+}
+
+export async function getPrompt(client: Client, name: string, args?: Record<string, string>) {
+  const response = await client.getPrompt({ name, arguments: args });
+  return response;
+}

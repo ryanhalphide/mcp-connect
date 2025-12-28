@@ -158,9 +158,6 @@ export class FavoriteStore {
   }
 }
 
-// Get database instance for favorites
-import { serverDatabase } from './db.js';
-
 // Access the underlying database connection
 // We need to add a method to get the database or use a shared connection
 // For now, create a separate favorites database or extend ServerDatabase
