@@ -71,6 +71,7 @@ export const ServerMetadataSchema = z.object({
   category: z.string().default('general'),
   version: z.string().default('1.0.0'),
   maintainer: z.string().optional(),
+  cacheTtl: z.number().min(0).optional(), // Cache TTL in seconds (optional, defaults to 300 in code)
 });
 
 // Server Group schema

@@ -14,12 +14,14 @@ import { keysApi } from './api/keys.js';
 import { groupsApi } from './api/groups.js';
 import { favoritesApi } from './api/favorites.js';
 import { usageHistoryApi } from './api/usageHistory.js';
+import { cacheApi } from './api/cache.js';
 import { connectionPool } from './core/pool.js';
 import { toolRegistry } from './core/registry.js';
 import { serverDatabase } from './storage/db.js';
 import { logger } from './observability/logger.js';
 import { loadServersFromConfig } from './seed/loadServers.js';
 import { initializeRateLimiter, shutdownRateLimiter } from './core/rateLimiterFactory.js';
+import { initializeCache, shutdownCache } from './core/cacheFactory.js';
 
 const app = new Hono();
 
@@ -65,6 +67,10 @@ app.route('/api/favorites', favoritesApi);
 app.use('/api/usage/*', authMiddleware);
 app.route('/api/usage', usageHistoryApi);
 
+// Mount cache management routes (requires auth)
+app.use('/api/cache/*', authMiddleware);
+app.route('/api/cache', cacheApi);
+
 // Mount monitoring routes with optional auth (dashboard public, sensitive endpoints protected)
 app.use('/api/monitor/stats', authMiddleware);
 app.use('/api/monitor/requests', authMiddleware);
@@ -92,6 +98,11 @@ async function startup() {
   logger.info('Initializing enhanced rate limiter...');
   initializeRateLimiter();
   logger.info('Enhanced rate limiter initialized');
+
+  // Initialize response cache (after migrations)
+  logger.info('Initializing response cache...');
+  initializeCache();
+  logger.info('Response cache initialized');
 
   // Load servers from config file if present
   const loadedCount = loadServersFromConfig();
@@ -124,6 +135,9 @@ async function startup() {
 async function shutdown() {
   logger.info('Shutting down MCP Connect...');
 
+  // Shutdown cache (cleanup interval)
+  shutdownCache();
+
   // Shutdown rate limiter (flush pending writes)
   shutdownRateLimiter();
 
@@ -155,6 +169,7 @@ startup().then(() => {
           groups: `http://localhost:${info.port}/api/groups (auth required)`,
           favorites: `http://localhost:${info.port}/api/favorites (auth required)`,
           usage: `http://localhost:${info.port}/api/usage (auth required)`,
+          cache: `http://localhost:${info.port}/api/cache (auth required)`,
           monitor: `http://localhost:${info.port}/api/monitor`,
           dashboard: `http://localhost:${info.port}/api/monitor/dashboard`,
         },

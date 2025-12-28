@@ -5,6 +5,7 @@ import { toolRegistry } from './registry.js';
 import { rateLimiter, RateLimitExceededError } from './rateLimiter.js';
 import { getEnhancedRateLimiter } from './rateLimiterFactory.js';
 import { getServerRateLimitConfig } from './rateLimiterEnhanced.js';
+import { getCache } from './cacheFactory.js';
 import { circuitBreakerRegistry, CircuitBreakerOpenError } from './circuitBreaker.js';
 import { callTool } from '../mcp/client.js';
 import { createChildLogger } from '../observability/logger.js';
@@ -153,6 +154,55 @@ export class ToolRouter {
       };
     }
 
+    // Check cache before making the actual call
+    let cachedResult: unknown | null = null;
+    let cacheHit = false;
+
+    try {
+      const cache = getCache();
+      cachedResult = await cache.get('tool', toolEntry.serverId, toolEntry.name, params);
+      if (cachedResult !== null) {
+        cacheHit = true;
+        logger.debug({ toolName, serverId: toolEntry.serverId }, 'Cache hit - returning cached response');
+      }
+    } catch (error) {
+      // Cache not available or error - continue without cache
+      logger.debug({ error }, 'Cache not available');
+    }
+
+    if (cacheHit && cachedResult !== null) {
+      // Return cached result
+      const durationMs = Date.now() - startTime;
+
+      // Still record success with circuit breaker
+      const breaker = circuitBreakerRegistry.getBreaker(toolEntry.serverId);
+      breaker.recordSuccess();
+
+      // Record usage for analytics
+      toolRegistry.recordUsage(toolEntry.name);
+
+      return {
+        success: true,
+        data: cachedResult,
+        serverId: toolEntry.serverId,
+        toolName: toolEntry.name,
+        durationMs,
+        rateLimit: {
+          remaining: {
+            perMinute: rateLimitResult.minuteRemaining,
+            perDay: rateLimitResult.dayRemaining,
+          },
+          resetAt: {
+            minute: new Date(rateLimitResult.minuteResetAt).toISOString(),
+            day: new Date(rateLimitResult.dayResetAt).toISOString(),
+          },
+        },
+        circuitBreaker: {
+          state: breaker.getState().state,
+        },
+      };
+    }
+
     // Get the connection for this server
     const client = connectionPool.getClient(toolEntry.serverId);
     if (!client) {
@@ -184,6 +234,18 @@ export class ToolRouter {
         : toolEntry.name;
 
       const result = await callTool(client as Client, actualToolName, params);
+
+      // Store successful result in cache
+      try {
+        const cache = getCache();
+        const server = serverDatabase.getServer(toolEntry.serverId);
+        const cacheTtl = server?.metadata?.cacheTtl || 300; // Default 5 minutes
+        await cache.set('tool', toolEntry.serverId, toolEntry.name, result, params, { ttl: cacheTtl });
+        logger.debug({ toolName, serverId: toolEntry.serverId, ttl: cacheTtl }, 'Response cached');
+      } catch (cacheError) {
+        // Log but don't fail the request if caching fails
+        logger.warn({ error: cacheError }, 'Failed to cache response');
+      }
 
       const durationMs = Date.now() - startTime;
       logger.info({ toolName, serverId: toolEntry.serverId, durationMs }, 'Tool invocation successful');
