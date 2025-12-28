@@ -13,6 +13,7 @@ import { monitorApi } from './api/monitor.js';
 import { keysApi } from './api/keys.js';
 import { groupsApi } from './api/groups.js';
 import { favoritesApi } from './api/favorites.js';
+import { usageHistoryApi } from './api/usageHistory.js';
 import { connectionPool } from './core/pool.js';
 import { toolRegistry } from './core/registry.js';
 import { serverDatabase } from './storage/db.js';
@@ -59,6 +60,9 @@ app.route('/api/groups', groupsApi);
 
 app.use('/api/favorites/*', authMiddleware);
 app.route('/api/favorites', favoritesApi);
+
+app.use('/api/usage/*', authMiddleware);
+app.route('/api/usage', usageHistoryApi);
 
 // Mount monitoring routes with optional auth (dashboard public, sensitive endpoints protected)
 app.use('/api/monitor/stats', authMiddleware);
@@ -131,6 +135,7 @@ startup().then(() => {
           webhook: `http://localhost:${info.port}/api/webhook (auth required)`,
           groups: `http://localhost:${info.port}/api/groups (auth required)`,
           favorites: `http://localhost:${info.port}/api/favorites (auth required)`,
+          usage: `http://localhost:${info.port}/api/usage (auth required)`,
           monitor: `http://localhost:${info.port}/api/monitor`,
           dashboard: `http://localhost:${info.port}/api/monitor/dashboard`,
         },

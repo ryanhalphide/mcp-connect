@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { ApiResponse, ToolSearchOptions } from '../core/types.js';
 import { toolRegistry } from '../core/registry.js';
 import { toolRouter } from '../core/router.js';
+import { usageHistoryStore } from '../storage/usageHistory.js';
 import { createChildLogger } from '../observability/logger.js';
 
 const logger = createChildLogger({ module: 'api-tools' });
@@ -50,6 +51,11 @@ function errorResponse(error: string): ApiResponse {
     error,
     timestamp: new Date().toISOString(),
   };
+}
+
+// Extract API key ID from context (set by auth middleware)
+function getApiKeyId(c: any): string | null {
+  return c.get('apiKeyId') || null;
 }
 
 // GET /tools/categories - Get all categories with counts
@@ -139,6 +145,7 @@ toolsApi.get('/:name{.+}', (c) => {
 // POST /tools/:name/invoke - Invoke a tool
 toolsApi.post('/:name{.+}/invoke', async (c) => {
   const name = c.req.param('name');
+  const apiKeyId = getApiKeyId(c);
 
   try {
     const body = await c.req.json();
@@ -147,6 +154,24 @@ toolsApi.post('/:name{.+}/invoke', async (c) => {
     logger.info({ toolName: name }, 'Tool invocation requested via API');
 
     const result = await toolRouter.invoke(name, params as Record<string, unknown>);
+
+    // Record usage history if we have an API key
+    if (apiKeyId && result.serverId) {
+      try {
+        usageHistoryStore.recordUsage(
+          apiKeyId,
+          result.toolName || name,
+          result.serverId,
+          result.success,
+          result.durationMs,
+          result.error,
+          params as Record<string, unknown>
+        );
+      } catch (usageError) {
+        // Log but don't fail the request if usage recording fails
+        logger.warn({ error: usageError }, 'Failed to record usage history');
+      }
+    }
 
     if (!result.success) {
       // Check if this is a rate limit error
@@ -194,6 +219,8 @@ toolsApi.post('/:name{.+}/invoke', async (c) => {
 
 // POST /tools/batch - Batch invoke multiple tools
 toolsApi.post('/batch', async (c) => {
+  const apiKeyId = getApiKeyId(c);
+
   try {
     const body = await c.req.json();
     const { invocations } = BatchInvokeSchema.parse(body);
@@ -206,6 +233,29 @@ toolsApi.post('/batch', async (c) => {
         params: params as Record<string, unknown>,
       }))
     );
+
+    // Record usage history for each invocation
+    if (apiKeyId) {
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        const invocation = invocations[i];
+        if (result.serverId) {
+          try {
+            usageHistoryStore.recordUsage(
+              apiKeyId,
+              result.toolName || invocation.toolName,
+              result.serverId,
+              result.success,
+              result.durationMs,
+              result.error,
+              invocation.params as Record<string, unknown>
+            );
+          } catch (usageError) {
+            logger.warn({ error: usageError }, 'Failed to record batch usage history');
+          }
+        }
+      }
+    }
 
     const successCount = results.filter((r) => r.success).length;
 
