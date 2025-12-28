@@ -3,16 +3,35 @@ import { v4 as uuidv4 } from 'uuid';
 import type { MCPServerConfig, ServerGroup } from '../core/types.js';
 import { MCPServerConfigSchema, ServerGroupSchema } from '../core/types.js';
 import { createChildLogger } from '../observability/logger.js';
+import { MigrationManager, allMigrations } from './migrations.js';
 
 const logger = createChildLogger({ module: 'database' });
 
 export class ServerDatabase {
   private db: Database.Database;
+  private migrationManager: MigrationManager;
 
   constructor(dbPath: string = ':memory:') {
     this.db = new Database(dbPath);
+    this.migrationManager = new MigrationManager(this.db);
     this.initialize();
     logger.info({ dbPath }, 'Database initialized');
+  }
+
+  /**
+   * Get the underlying database instance (for advanced use cases like rate limiter)
+   * @internal
+   */
+  getDatabase(): Database.Database {
+    return this.db;
+  }
+
+  async runMigrations(): Promise<void> {
+    await this.migrationManager.runMigrations(allMigrations);
+  }
+
+  getMigrationStatus() {
+    return this.migrationManager.getStatus(allMigrations);
   }
 
   private initialize(): void {

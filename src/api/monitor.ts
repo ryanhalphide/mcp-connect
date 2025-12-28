@@ -3,6 +3,7 @@ import type { ApiResponse } from '../core/types.js';
 import { connectionPool } from '../core/pool.js';
 import { toolRegistry } from '../core/registry.js';
 import { serverDatabase } from '../storage/db.js';
+import { circuitBreakerRegistry } from '../core/circuitBreaker.js';
 import { createChildLogger } from '../observability/logger.js';
 
 const _logger = createChildLogger({ module: 'api-monitor' });
@@ -127,6 +128,97 @@ monitorApi.get('/metrics', (c) => {
       tools: {
         registered: toolRegistry.getToolCount(),
       },
+    })
+  );
+});
+
+// GET /monitor/circuit-breakers - Get all circuit breaker states
+monitorApi.get('/circuit-breakers', (c) => {
+  const states = circuitBreakerRegistry.getAllStates();
+  const counts = circuitBreakerRegistry.getStateCounts();
+
+  const breakers: Array<{
+    serverId: string;
+    state: string;
+    failureCount: number;
+    successCount: number;
+    lastFailureTime: number | null;
+    lastStateChange: number;
+    requestCount: number;
+  }> = [];
+
+  for (const [serverId, state] of states) {
+    breakers.push({
+      serverId,
+      ...state,
+    });
+  }
+
+  return c.json(
+    apiResponse({
+      breakers,
+      summary: counts,
+      total: breakers.length,
+    })
+  );
+});
+
+// GET /monitor/circuit-breakers/:serverId - Get circuit breaker for a specific server
+monitorApi.get('/circuit-breakers/:serverId', (c) => {
+  const serverId = c.req.param('serverId');
+  const state = circuitBreakerRegistry.getState(serverId);
+
+  if (!state) {
+    c.status(404);
+    return c.json({
+      success: false,
+      error: `No circuit breaker found for server: ${serverId}`,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  return c.json(
+    apiResponse({
+      serverId,
+      ...state,
+    })
+  );
+});
+
+// POST /monitor/circuit-breakers/:serverId/reset - Reset (force close) a circuit breaker
+monitorApi.post('/circuit-breakers/:serverId/reset', (c) => {
+  const serverId = c.req.param('serverId');
+  const success = circuitBreakerRegistry.forceClose(serverId);
+
+  if (!success) {
+    c.status(404);
+    return c.json({
+      success: false,
+      error: `No circuit breaker found for server: ${serverId}`,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  return c.json(
+    apiResponse({
+      serverId,
+      action: 'reset',
+      newState: 'CLOSED',
+    })
+  );
+});
+
+// POST /monitor/circuit-breakers/:serverId/trip - Force open a circuit breaker
+monitorApi.post('/circuit-breakers/:serverId/trip', (c) => {
+  const serverId = c.req.param('serverId');
+  const breaker = circuitBreakerRegistry.getBreaker(serverId);
+  breaker.forceOpen();
+
+  return c.json(
+    apiResponse({
+      serverId,
+      action: 'trip',
+      newState: 'OPEN',
     })
   );
 });

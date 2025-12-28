@@ -19,6 +19,7 @@ import { toolRegistry } from './core/registry.js';
 import { serverDatabase } from './storage/db.js';
 import { logger } from './observability/logger.js';
 import { loadServersFromConfig } from './seed/loadServers.js';
+import { initializeRateLimiter, shutdownRateLimiter } from './core/rateLimiterFactory.js';
 
 const app = new Hono();
 
@@ -77,6 +78,21 @@ app.use('/*', serveStatic({ root: './public' }));
 async function startup() {
   logger.info('Starting MCP Connect...');
 
+  // Run database migrations
+  logger.info('Running database migrations...');
+  await serverDatabase.runMigrations();
+  const migrationStatus = serverDatabase.getMigrationStatus();
+  logger.info({
+    currentVersion: migrationStatus.current,
+    latestVersion: migrationStatus.latest,
+    pending: migrationStatus.pending
+  }, 'Database migrations complete');
+
+  // Initialize enhanced rate limiter (after migrations)
+  logger.info('Initializing enhanced rate limiter...');
+  initializeRateLimiter();
+  logger.info('Enhanced rate limiter initialized');
+
   // Load servers from config file if present
   const loadedCount = loadServersFromConfig();
   if (loadedCount > 0) {
@@ -107,6 +123,9 @@ async function startup() {
 // Shutdown function
 async function shutdown() {
   logger.info('Shutting down MCP Connect...');
+
+  // Shutdown rate limiter (flush pending writes)
+  shutdownRateLimiter();
 
   await connectionPool.disconnectAll();
   serverDatabase.close();

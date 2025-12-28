@@ -55,7 +55,8 @@ function errorResponse(error: string): ApiResponse {
 
 // Extract API key ID from context (set by auth middleware)
 function getApiKeyId(c: any): string | null {
-  return c.get('apiKeyId') || null;
+  const apiKey = c.get('apiKey');
+  return apiKey?.id || null;
 }
 
 // GET /tools/categories - Get all categories with counts
@@ -151,9 +152,9 @@ toolsApi.post('/:name{.+}/invoke', async (c) => {
     const body = await c.req.json();
     const { params } = InvokeToolSchema.parse(body);
 
-    logger.info({ toolName: name }, 'Tool invocation requested via API');
+    logger.info({ toolName: name, apiKeyId }, 'Tool invocation requested via API');
 
-    const result = await toolRouter.invoke(name, params as Record<string, unknown>);
+    const result = await toolRouter.invoke(name, params as Record<string, unknown>, apiKeyId || undefined);
 
     // Record usage history if we have an API key
     if (apiKeyId && result.serverId) {
@@ -225,13 +226,14 @@ toolsApi.post('/batch', async (c) => {
     const body = await c.req.json();
     const { invocations } = BatchInvokeSchema.parse(body);
 
-    logger.info({ count: invocations.length }, 'Batch tool invocation requested via API');
+    logger.info({ count: invocations.length, apiKeyId }, 'Batch tool invocation requested via API');
 
     const results = await toolRouter.invokeBatch(
       invocations.map(({ toolName, params }) => ({
         toolName,
         params: params as Record<string, unknown>,
-      }))
+      })),
+      apiKeyId || undefined
     );
 
     // Record usage history for each invocation
