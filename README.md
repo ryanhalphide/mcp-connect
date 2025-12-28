@@ -2,6 +2,8 @@
 
 Universal MCP Server Aggregator & Connection Manager
 
+**🚀 Production:** [https://mcp-connect-production.up.railway.app](https://mcp-connect-production.up.railway.app)
+
 ## Overview
 
 MCP Connect is a centralized hub that aggregates multiple MCP (Model Context Protocol) servers into a single, unified API. It handles connection management, tool discovery, health monitoring, and provides a REST API for interacting with all connected MCP servers.
@@ -13,6 +15,15 @@ MCP Connect is a centralized hub that aggregates multiple MCP (Model Context Pro
 - **Tool Router**: Route tool invocations to the correct server
 - **REST API**: Full API for server management, tool discovery, and invocation
 - **Health Monitoring**: Kubernetes-compatible health endpoints
+- **Authentication**: API key-based authentication with scoped permissions
+- **Rate Limiting**: Per-server rate limits for fair resource allocation
+- **Railway Deployment**: Production-ready deployment on Railway
+
+## Documentation
+
+- **[API Quick Start](./API-QUICKSTART.md)** - Get started with the API in 30 seconds
+- **[Deployment Guide](./DEPLOYMENT.md)** - Complete Railway deployment documentation
+- **[Monitoring Dashboard](https://mcp-connect-production.up.railway.app/api/monitor/dashboard)** - Real-time system metrics
 
 ## Quick Start
 
