@@ -97,6 +97,58 @@
         "version": "0.6.2",
         "requiresEnv": ["GITHUB_PERSONAL_ACCESS_TOKEN"]
       }
+    },
+    {
+      "name": "slack",
+      "description": "Slack integration for reading messages, sending messages, and managing channels",
+      "transport": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["-y", "slack-mcp-server"],
+        "env": {}
+      },
+      "auth": { "type": "none" },
+      "healthCheck": {
+        "enabled": true,
+        "intervalMs": 60000,
+        "timeoutMs": 5000
+      },
+      "rateLimits": {
+        "requestsPerMinute": 20,
+        "requestsPerDay": 2000
+      },
+      "metadata": {
+        "tags": ["slack", "chat", "messaging", "integration"],
+        "category": "integration",
+        "version": "1.1.28",
+        "requiresEnv": ["SLACK_TOKEN"]
+      }
+    },
+    {
+      "name": "discord",
+      "description": "Discord integration for server management, message operations, and channel management",
+      "transport": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["-y", "mcp-server-discord"],
+        "env": {}
+      },
+      "auth": { "type": "none" },
+      "healthCheck": {
+        "enabled": true,
+        "intervalMs": 60000,
+        "timeoutMs": 5000
+      },
+      "rateLimits": {
+        "requestsPerMinute": 20,
+        "requestsPerDay": 2000
+      },
+      "metadata": {
+        "tags": ["discord", "chat", "messaging", "integration"],
+        "category": "integration",
+        "version": "1.2.8",
+        "requiresEnv": ["DISCORD_TOKEN"]
+      }
     }
   ]
 }
