@@ -28,12 +28,13 @@ export class ApiKeyStore {
   }
 
   private initialize() {
-    // Create API keys table
+    // Create API keys table with tenant support
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS api_keys (
         id TEXT PRIMARY KEY,
         key TEXT UNIQUE NOT NULL,
         name TEXT NOT NULL,
+        tenant_id TEXT,
         created_at TEXT NOT NULL,
         last_used_at TEXT,
         enabled INTEGER NOT NULL DEFAULT 1,
@@ -44,6 +45,11 @@ export class ApiKeyStore {
     // Create index on key for fast lookups
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(key)
+    `);
+
+    // Create index on tenant_id for tenant-scoped lookups
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_api_keys_tenant ON api_keys(tenant_id)
     `);
 
     logger.info('API keys table initialized');

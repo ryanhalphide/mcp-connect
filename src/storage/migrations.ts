@@ -336,11 +336,16 @@ export const migration005: Migration = {
         ON tenants(enabled);
     `);
 
-    // Add tenant_id to api_keys table
-    db.exec(`
-      ALTER TABLE api_keys ADD COLUMN tenant_id TEXT REFERENCES tenants(id);
-      CREATE INDEX IF NOT EXISTS idx_api_keys_tenant ON api_keys(tenant_id);
-    `);
+    // Add tenant_id to api_keys table (if not exists)
+    try {
+      db.exec(`ALTER TABLE api_keys ADD COLUMN tenant_id TEXT REFERENCES tenants(id)`);
+    } catch (error) {
+      // Column might already exist from a previous migration attempt
+      if (!(error instanceof Error) || !error.message.includes('duplicate column')) {
+        throw error;
+      }
+    }
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_tenant ON api_keys(tenant_id)`);
 
     // RBAC: Roles table
     db.exec(`
@@ -401,25 +406,82 @@ export const migration005: Migration = {
         ON rbac_api_key_roles(api_key_id);
     `);
 
-    // Audit log table
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS audit_log (
-        id TEXT PRIMARY KEY,
-        timestamp TEXT NOT NULL DEFAULT (datetime('now')),
-        api_key_id TEXT,
-        tenant_id TEXT,
-        action TEXT NOT NULL,
-        resource_type TEXT NOT NULL,
-        resource_id TEXT,
-        server_id TEXT,
-        status TEXT NOT NULL CHECK(status IN ('success', 'failure')),
-        duration_ms INTEGER,
-        metadata_json TEXT DEFAULT '{}',
-        error TEXT,
-        FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE SET NULL,
-        FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE SET NULL
-      );
+    // Audit log table - migrate from old schema if exists
+    // Check if audit_log table exists with old schema
+    const auditTableInfo = db.prepare("PRAGMA table_info(audit_log)").all() as Array<{ name: string }>;
+    const hasOldSchema = auditTableInfo.length > 0 && auditTableInfo.some((col) => col.name === 'details_json');
 
+    if (hasOldSchema) {
+      // Migrate from old schema to new schema
+      logger.info('Migrating audit_log from old schema to new schema');
+
+      // Create new table with new schema
+      db.exec(`
+        CREATE TABLE audit_log_new (
+          id TEXT PRIMARY KEY,
+          timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+          api_key_id TEXT,
+          tenant_id TEXT,
+          action TEXT NOT NULL,
+          resource_type TEXT NOT NULL,
+          resource_id TEXT,
+          server_id TEXT,
+          status TEXT NOT NULL CHECK(status IN ('success', 'failure')),
+          duration_ms INTEGER,
+          metadata_json TEXT DEFAULT '{}',
+          error TEXT,
+          FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE SET NULL,
+          FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE SET NULL
+        );
+      `);
+
+      // Migrate existing data (map old columns to new ones)
+      db.exec(`
+        INSERT INTO audit_log_new (id, timestamp, api_key_id, action, resource_type, resource_id, status, duration_ms, metadata_json)
+        SELECT
+          id,
+          timestamp,
+          api_key_id,
+          action,
+          resource_type,
+          resource_id,
+          CASE WHEN success = 1 THEN 'success' ELSE 'failure' END as status,
+          duration_ms,
+          details_json as metadata_json
+        FROM audit_log;
+      `);
+
+      // Drop old table and rename new one
+      db.exec(`
+        DROP TABLE audit_log;
+        ALTER TABLE audit_log_new RENAME TO audit_log;
+      `);
+
+      logger.info('Audit log migration completed');
+    } else {
+      // Create table with new schema
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS audit_log (
+          id TEXT PRIMARY KEY,
+          timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+          api_key_id TEXT,
+          tenant_id TEXT,
+          action TEXT NOT NULL,
+          resource_type TEXT NOT NULL,
+          resource_id TEXT,
+          server_id TEXT,
+          status TEXT NOT NULL CHECK(status IN ('success', 'failure')),
+          duration_ms INTEGER,
+          metadata_json TEXT DEFAULT '{}',
+          error TEXT,
+          FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE SET NULL,
+          FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE SET NULL
+        );
+      `);
+    }
+
+    // Create indexes
+    db.exec(`
       CREATE INDEX IF NOT EXISTS idx_audit_timestamp
         ON audit_log(timestamp);
       CREATE INDEX IF NOT EXISTS idx_audit_tenant
