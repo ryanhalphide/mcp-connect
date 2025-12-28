@@ -15,6 +15,7 @@ import { groupsApi } from './api/groups.js';
 import { favoritesApi } from './api/favorites.js';
 import { usageHistoryApi } from './api/usageHistory.js';
 import { cacheApi } from './api/cache.js';
+import { auditApi } from './api/audit.js';
 import { connectionPool } from './core/pool.js';
 import { toolRegistry } from './core/registry.js';
 import { serverDatabase } from './storage/db.js';
@@ -22,6 +23,7 @@ import { logger } from './observability/logger.js';
 import { loadServersFromConfig } from './seed/loadServers.js';
 import { initializeRateLimiter, shutdownRateLimiter } from './core/rateLimiterFactory.js';
 import { initializeCache, shutdownCache } from './core/cacheFactory.js';
+import { initializeAuditLogger } from './observability/auditLog.js';
 
 const app = new Hono();
 
@@ -71,6 +73,10 @@ app.route('/api/usage', usageHistoryApi);
 app.use('/api/cache/*', authMiddleware);
 app.route('/api/cache', cacheApi);
 
+// Mount audit log routes (requires auth)
+app.use('/api/audit/*', authMiddleware);
+app.route('/api/audit', auditApi);
+
 // Mount monitoring routes with optional auth (dashboard public, sensitive endpoints protected)
 app.use('/api/monitor/stats', authMiddleware);
 app.use('/api/monitor/requests', authMiddleware);
@@ -103,6 +109,11 @@ async function startup() {
   logger.info('Initializing response cache...');
   initializeCache();
   logger.info('Response cache initialized');
+
+  // Initialize audit logger (after migrations)
+  logger.info('Initializing audit logger...');
+  initializeAuditLogger(serverDatabase.getDatabase());
+  logger.info('Audit logger initialized');
 
   // Load servers from config file if present
   const loadedCount = loadServersFromConfig();
@@ -170,6 +181,7 @@ startup().then(() => {
           favorites: `http://localhost:${info.port}/api/favorites (auth required)`,
           usage: `http://localhost:${info.port}/api/usage (auth required)`,
           cache: `http://localhost:${info.port}/api/cache (auth required)`,
+          audit: `http://localhost:${info.port}/api/audit (auth required)`,
           monitor: `http://localhost:${info.port}/api/monitor`,
           dashboard: `http://localhost:${info.port}/api/monitor/dashboard`,
         },
