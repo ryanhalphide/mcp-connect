@@ -71,6 +71,32 @@
         "category": "storage",
         "version": "1.0.0"
       }
+    },
+    {
+      "name": "github",
+      "description": "GitHub API integration for repository management, file operations, issues, and pull requests",
+      "transport": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["-y", "@iflow-mcp/server-github"],
+        "env": {}
+      },
+      "auth": { "type": "none" },
+      "healthCheck": {
+        "enabled": true,
+        "intervalMs": 60000,
+        "timeoutMs": 5000
+      },
+      "rateLimits": {
+        "requestsPerMinute": 30,
+        "requestsPerDay": 5000
+      },
+      "metadata": {
+        "tags": ["github", "git", "api", "repository", "integration"],
+        "category": "integration",
+        "version": "0.6.2",
+        "requiresEnv": ["GITHUB_PERSONAL_ACCESS_TOKEN"]
+      }
     }
   ]
 }

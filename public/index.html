@@ -634,31 +634,27 @@
     }
 
     async function fetchServers() {
-      try {
-        const res = await fetch(`${API_BASE}/servers`);
-        const json = await res.json();
-
-        if (json.success) {
-          renderServers(json.data);
-        }
-      } catch (err) {
-        document.getElementById('servers-container').innerHTML = '<div class="loading">Failed to load servers</div>';
-      }
+      // Server details require authentication - show message instead
+      const container = document.getElementById('servers-container');
+      container.innerHTML = `
+        <div style="text-align: center; padding: 20px; color: #a1a1aa;">
+          <p style="margin-bottom: 10px;">Server details require API authentication.</p>
+          <p style="font-size: 12px;">Use the <a href="/api/monitor/dashboard" style="color: #818cf8;">monitoring dashboard</a> for public metrics.</p>
+        </div>
+      `;
     }
 
     async function fetchTools() {
-      try {
-        const res = await fetch(`${API_BASE}/tools`);
-        const json = await res.json();
-
-        if (json.success) {
-          allTools = json.data.tools;
-          document.getElementById('tools-count-label').textContent = `${allTools.length} tools available`;
-          renderTools(allTools);
-        }
-      } catch (err) {
-        document.getElementById('tools-container').innerHTML = '<div class="loading">Failed to load tools</div>';
-      }
+      // Tool details require authentication - show message instead
+      const container = document.getElementById('tools-container');
+      container.innerHTML = `
+        <div style="text-align: center; padding: 20px; color: #a1a1aa;">
+          <p style="margin-bottom: 10px;">Tool details require API authentication.</p>
+          <p style="font-size: 12px;">Tool count is shown above from the health endpoint.</p>
+        </div>
+      `;
+      document.getElementById('tools-count-label').textContent = 'Authentication required for details';
+      document.getElementById('tool-search').style.display = 'none';
     }
 
     function renderServers(servers) {
@@ -674,12 +670,12 @@
           <div class="server-header">
             <div class="server-icon">${server.name === 'filesystem' ? '📁' : server.name === 'memory' ? '🧠' : '🔌'}</div>
             <div class="server-name">${server.name}</div>
-            <div class="server-status ${server.connectionStatus || 'disconnected'}">${server.connectionStatus || 'unknown'}</div>
+            <div class="server-status ${server.status || 'disconnected'}">${server.status || 'unknown'}</div>
           </div>
           <div class="server-details">
             <div class="server-detail">
-              <span class="server-detail-label">Transport</span>
-              <span class="server-detail-value">${server.transport?.type || '-'}</span>
+              <span class="server-detail-label">Category</span>
+              <span class="server-detail-value">${server.category || '-'}</span>
             </div>
             <div class="server-detail">
               <span class="server-detail-label">Tools</span>
@@ -687,11 +683,11 @@
             </div>
             <div class="server-detail">
               <span class="server-detail-label">Rate Limit</span>
-              <span class="server-detail-value">${server.rateLimits ? `${server.rateLimits.requestsPerMinute}/min` : 'None'}</span>
+              <span class="server-detail-value">${server.rateLimit ? `${server.rateLimit.requestsPerMinute}/min` : 'None'}</span>
             </div>
             <div class="server-detail">
-              <span class="server-detail-label">Auth</span>
-              <span class="server-detail-value">${server.auth?.type || 'none'}</span>
+              <span class="server-detail-label">Status</span>
+              <span class="server-detail-value">${server.enabled ? 'Enabled' : 'Disabled'}</span>
             </div>
           </div>
         </div>
@@ -728,17 +724,16 @@
         <div style="margin-bottom: 12px;">
           <strong style="color: #818cf8;">Server:</strong> ${tool.serverName}
         </div>
-        <div style="margin-bottom: 12px;">
-          <strong style="color: #818cf8;">Input Schema:</strong>
+        <div style="margin-bottom: 16px; padding: 12px; background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px; color: #fbbf24; font-size: 13px;">
+          ⚠️ Tool invocation requires API key authentication. Use the webhook API endpoint:
+          <code style="display: block; margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; font-size: 11px;">
+            POST /api/webhook/invoke/${tool.name}
+          </code>
         </div>
-        <div class="schema-view">${JSON.stringify(tool.inputSchema, null, 2)}</div>
       `;
 
-      // Reset invoke section
-      document.getElementById('params-input').value = generateDefaultParams(tool.inputSchema);
-      document.getElementById('result-section').style.display = 'none';
-      document.getElementById('invoke-btn').disabled = false;
-      document.getElementById('invoke-btn-text').textContent = '⚡ Invoke';
+      // Hide invoke section for public dashboard (requires auth)
+      document.querySelector('.invoke-section').style.display = 'none';
 
       document.getElementById('tool-modal').classList.add('active');
     }
