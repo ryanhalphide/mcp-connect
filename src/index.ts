@@ -15,6 +15,7 @@ import { connectionPool } from './core/pool.js';
 import { toolRegistry } from './core/registry.js';
 import { serverDatabase } from './storage/db.js';
 import { logger } from './observability/logger.js';
+import { loadServersFromConfig } from './seed/loadServers.js';
 
 const app = new Hono();
 
@@ -63,6 +64,12 @@ app.use('/*', serveStatic({ root: './public' }));
 // Startup function
 async function startup() {
   logger.info('Starting MCP Connect...');
+
+  // Load servers from config file if present
+  const loadedCount = loadServersFromConfig();
+  if (loadedCount > 0) {
+    logger.info({ loadedCount }, 'Servers seeded from config file');
+  }
 
   // Auto-connect to enabled servers
   const servers = serverDatabase.getAllServers(true);
