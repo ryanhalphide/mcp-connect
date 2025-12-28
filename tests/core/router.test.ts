@@ -12,9 +12,12 @@ vi.mock('../../src/core/pool.js', () => ({
   },
 }));
 
+const mockRecordUsage = vi.fn();
+
 vi.mock('../../src/core/registry.js', () => ({
   toolRegistry: {
     findTool: (name: string) => mockFindTool(name),
+    recordUsage: (name: string) => mockRecordUsage(name),
   },
 }));
 

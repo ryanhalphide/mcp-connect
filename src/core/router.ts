@@ -95,6 +95,9 @@ export class ToolRouter {
       const durationMs = Date.now() - startTime;
       logger.info({ toolName, serverId: toolEntry.serverId, durationMs }, 'Tool invocation successful');
 
+      // Record usage for analytics
+      toolRegistry.recordUsage(toolEntry.name);
+
       return {
         success: true,
         data: result,

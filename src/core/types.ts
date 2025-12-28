@@ -110,8 +110,25 @@ export const ToolRegistryEntrySchema = z.object({
   serverName: z.string(),
   description: z.string().default(''),
   inputSchema: z.record(z.unknown()).optional(),
+  category: z.string().default('general'),
+  tags: z.array(z.string()).default([]),
+  usageCount: z.number().int().default(0),
+  lastUsedAt: z.date().optional(),
   registeredAt: z.date().default(() => new Date()),
 });
+
+// Tool search options
+export const ToolSearchOptionsSchema = z.object({
+  query: z.string().optional(),
+  category: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  server: z.string().optional(),
+  sortBy: z.enum(['name', 'usage', 'recent']).default('name'),
+  limit: z.number().int().positive().max(100).default(50),
+  offset: z.number().int().nonnegative().default(0),
+});
+
+export type ToolSearchOptions = z.infer<typeof ToolSearchOptionsSchema>;
 
 // Infer types from schemas
 export type StdioTransport = z.infer<typeof StdioTransportSchema>;

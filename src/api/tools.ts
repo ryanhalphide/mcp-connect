@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { ApiResponse } from '../core/types.js';
+import type { ApiResponse, ToolSearchOptions } from '../core/types.js';
 import { toolRegistry } from '../core/registry.js';
 import { toolRouter } from '../core/router.js';
 import { createChildLogger } from '../observability/logger.js';
@@ -24,6 +24,17 @@ const BatchInvokeSchema = z.object({
   ),
 });
 
+// Search query params schema
+const SearchQuerySchema = z.object({
+  q: z.string().optional(),
+  category: z.string().optional(),
+  tags: z.string().optional(), // comma-separated
+  server: z.string().optional(),
+  sortBy: z.enum(['name', 'usage', 'recent']).optional().default('name'),
+  limit: z.coerce.number().int().positive().max(100).optional().default(50),
+  offset: z.coerce.number().int().nonnegative().optional().default(0),
+});
+
 // Helper to create API response
 function apiResponse<T>(data: T, success = true): ApiResponse<T> {
   return {
@@ -41,19 +52,75 @@ function errorResponse(error: string): ApiResponse {
   };
 }
 
-// GET /tools - List all tools
-toolsApi.get('/', (c) => {
-  const query = c.req.query('q');
-
-  const tools = query
-    ? toolRegistry.searchTools(query)
-    : toolRegistry.getAllTools();
-
+// GET /tools/categories - Get all categories with counts
+toolsApi.get('/categories', (c) => {
+  const categories = toolRegistry.getCategories();
   return c.json(apiResponse({
-    tools,
-    count: tools.length,
-    totalRegistered: toolRegistry.getToolCount(),
+    categories,
+    count: categories.length,
   }));
+});
+
+// GET /tools/tags - Get all tags with counts
+toolsApi.get('/tags', (c) => {
+  const tags = toolRegistry.getAllTags();
+  return c.json(apiResponse({
+    tags,
+    count: tags.length,
+  }));
+});
+
+// GET /tools/stats - Get tool statistics
+toolsApi.get('/stats', (c) => {
+  const stats = toolRegistry.getStats();
+  return c.json(apiResponse(stats));
+});
+
+// GET /tools - List all tools with optional filters
+toolsApi.get('/', (c) => {
+  try {
+    const rawQuery = {
+      q: c.req.query('q'),
+      category: c.req.query('category'),
+      tags: c.req.query('tags'),
+      server: c.req.query('server'),
+      sortBy: c.req.query('sortBy') || 'name',
+      limit: c.req.query('limit') || '50',
+      offset: c.req.query('offset') || '0',
+    };
+
+    const params = SearchQuerySchema.parse(rawQuery);
+
+    const searchOptions: ToolSearchOptions = {
+      query: params.q,
+      category: params.category,
+      tags: params.tags ? params.tags.split(',').map((t) => t.trim()) : undefined,
+      server: params.server,
+      sortBy: params.sortBy,
+      limit: params.limit,
+      offset: params.offset,
+    };
+
+    const result = toolRegistry.searchToolsAdvanced(searchOptions);
+
+    return c.json(apiResponse({
+      tools: result.tools,
+      count: result.tools.length,
+      total: result.total,
+      categories: result.categories,
+      pagination: {
+        limit: params.limit,
+        offset: params.offset,
+        hasMore: params.offset + result.tools.length < result.total,
+      },
+    }));
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      c.status(400);
+      return c.json(errorResponse(`Invalid query parameters: ${error.message}`));
+    }
+    throw error;
+  }
 });
 
 // GET /tools/:name - Get tool by name

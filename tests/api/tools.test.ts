@@ -5,8 +5,18 @@ import { toolsApi } from '../../src/api/tools.js';
 // Mock dependencies
 const mockGetAllTools = vi.fn(() => []);
 const mockSearchTools = vi.fn(() => []);
+const mockSearchToolsAdvanced = vi.fn(() => ({ tools: [], total: 0, categories: [] }));
 const mockFindTool = vi.fn();
 const mockGetToolCount = vi.fn(() => 0);
+const mockGetCategories = vi.fn(() => []);
+const mockGetAllTags = vi.fn(() => []);
+const mockGetStats = vi.fn(() => ({
+  totalTools: 0,
+  totalCategories: 0,
+  byCategory: [],
+  topUsed: [],
+  recentlyUsed: [],
+}));
 const mockInvoke = vi.fn();
 const mockInvokeBatch = vi.fn();
 
@@ -14,8 +24,12 @@ vi.mock('../../src/core/registry.js', () => ({
   toolRegistry: {
     getAllTools: () => mockGetAllTools(),
     searchTools: (query: string) => mockSearchTools(query),
+    searchToolsAdvanced: (options: any) => mockSearchToolsAdvanced(options),
     findTool: (name: string) => mockFindTool(name),
     getToolCount: () => mockGetToolCount(),
+    getCategories: () => mockGetCategories(),
+    getAllTags: () => mockGetAllTags(),
+    getStats: () => mockGetStats(),
   },
 }));
 
@@ -59,8 +73,11 @@ describe('Tools API', () => {
 
   describe('GET /tools', () => {
     it('should return all tools', async () => {
-      mockGetAllTools.mockReturnValue([testTool]);
-      mockGetToolCount.mockReturnValue(1);
+      mockSearchToolsAdvanced.mockReturnValue({
+        tools: [testTool],
+        total: 1,
+        categories: ['filesystem'],
+      });
 
       const res = await app.request('/tools');
       expect(res.status).toBe(200);
@@ -69,12 +86,16 @@ describe('Tools API', () => {
       expect(json.success).toBe(true);
       expect(json.data.tools).toHaveLength(1);
       expect(json.data.count).toBe(1);
-      expect(json.data.totalRegistered).toBe(1);
+      expect(json.data.total).toBe(1);
+      expect(json.data.categories).toContain('filesystem');
     });
 
     it('should return empty array when no tools registered', async () => {
-      mockGetAllTools.mockReturnValue([]);
-      mockGetToolCount.mockReturnValue(0);
+      mockSearchToolsAdvanced.mockReturnValue({
+        tools: [],
+        total: 0,
+        categories: [],
+      });
 
       const res = await app.request('/tools');
       expect(res.status).toBe(200);
@@ -82,20 +103,127 @@ describe('Tools API', () => {
       const json = await res.json();
       expect(json.data.tools).toEqual([]);
       expect(json.data.count).toBe(0);
+      expect(json.data.total).toBe(0);
     });
 
     it('should search tools when query param provided', async () => {
-      mockSearchTools.mockReturnValue([testTool]);
-      mockGetToolCount.mockReturnValue(5);
+      mockSearchToolsAdvanced.mockReturnValue({
+        tools: [testTool],
+        total: 1,
+        categories: ['filesystem'],
+      });
 
       const res = await app.request('/tools?q=file');
       expect(res.status).toBe(200);
 
-      expect(mockSearchTools).toHaveBeenCalledWith('file');
+      expect(mockSearchToolsAdvanced).toHaveBeenCalledWith(
+        expect.objectContaining({ query: 'file' })
+      );
       const json = await res.json();
       expect(json.data.tools).toHaveLength(1);
       expect(json.data.count).toBe(1);
-      expect(json.data.totalRegistered).toBe(5);
+    });
+
+    it('should filter by category', async () => {
+      mockSearchToolsAdvanced.mockReturnValue({
+        tools: [testTool],
+        total: 1,
+        categories: ['filesystem'],
+      });
+
+      const res = await app.request('/tools?category=filesystem');
+      expect(res.status).toBe(200);
+
+      expect(mockSearchToolsAdvanced).toHaveBeenCalledWith(
+        expect.objectContaining({ category: 'filesystem' })
+      );
+    });
+
+    it('should filter by tags', async () => {
+      mockSearchToolsAdvanced.mockReturnValue({
+        tools: [testTool],
+        total: 1,
+        categories: ['filesystem'],
+      });
+
+      const res = await app.request('/tools?tags=read,file');
+      expect(res.status).toBe(200);
+
+      expect(mockSearchToolsAdvanced).toHaveBeenCalledWith(
+        expect.objectContaining({ tags: ['read', 'file'] })
+      );
+    });
+
+    it('should support pagination', async () => {
+      mockSearchToolsAdvanced.mockReturnValue({
+        tools: [testTool],
+        total: 100,
+        categories: ['filesystem'],
+      });
+
+      const res = await app.request('/tools?limit=10&offset=20');
+      expect(res.status).toBe(200);
+
+      expect(mockSearchToolsAdvanced).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 10, offset: 20 })
+      );
+      const json = await res.json();
+      expect(json.data.pagination.limit).toBe(10);
+      expect(json.data.pagination.offset).toBe(20);
+      expect(json.data.pagination.hasMore).toBe(true);
+    });
+  });
+
+  describe('GET /tools/categories', () => {
+    it('should return all categories', async () => {
+      mockGetCategories.mockReturnValue([
+        { name: 'filesystem', count: 5 },
+        { name: 'utility', count: 3 },
+      ]);
+
+      const res = await app.request('/tools/categories');
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json.data.categories).toHaveLength(2);
+      expect(json.data.count).toBe(2);
+    });
+  });
+
+  describe('GET /tools/tags', () => {
+    it('should return all tags', async () => {
+      mockGetAllTags.mockReturnValue([
+        { name: 'read', count: 10 },
+        { name: 'write', count: 5 },
+      ]);
+
+      const res = await app.request('/tools/tags');
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json.data.tags).toHaveLength(2);
+    });
+  });
+
+  describe('GET /tools/stats', () => {
+    it('should return tool statistics', async () => {
+      mockGetStats.mockReturnValue({
+        totalTools: 10,
+        totalCategories: 3,
+        byCategory: [{ name: 'filesystem', count: 5 }],
+        topUsed: [testTool],
+        recentlyUsed: [testTool],
+      });
+
+      const res = await app.request('/tools/stats');
+      expect(res.status).toBe(200);
+
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json.data.totalTools).toBe(10);
+      expect(json.data.totalCategories).toBe(3);
     });
   });
 
