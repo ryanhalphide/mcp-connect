@@ -241,5 +241,235 @@ export const migration003: Migration = {
   },
 };
 
+// Migration 004: Workflow orchestration
+export const migration004: Migration = {
+  version: 4,
+  name: 'workflow_orchestration',
+  up: (db) => {
+    // Workflows table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS workflows (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT DEFAULT '',
+        definition_json TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_workflows_name
+        ON workflows(name);
+      CREATE INDEX IF NOT EXISTS idx_workflows_enabled
+        ON workflows(enabled);
+    `);
+
+    // Workflow executions table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS workflow_executions (
+        id TEXT PRIMARY KEY,
+        workflow_id TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'failed', 'cancelled')),
+        input_json TEXT,
+        output_json TEXT,
+        error TEXT,
+        started_at TEXT NOT NULL DEFAULT (datetime('now')),
+        completed_at TEXT,
+        triggered_by TEXT,
+        FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_workflow_executions_workflow
+        ON workflow_executions(workflow_id);
+      CREATE INDEX IF NOT EXISTS idx_workflow_executions_status
+        ON workflow_executions(status);
+      CREATE INDEX IF NOT EXISTS idx_workflow_executions_started
+        ON workflow_executions(started_at);
+    `);
+
+    // Workflow execution steps table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS workflow_execution_steps (
+        id TEXT PRIMARY KEY,
+        execution_id TEXT NOT NULL,
+        step_index INTEGER NOT NULL,
+        step_name TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'failed', 'skipped')),
+        input_json TEXT,
+        output_json TEXT,
+        error TEXT,
+        retry_count INTEGER NOT NULL DEFAULT 0,
+        started_at TEXT,
+        completed_at TEXT,
+        FOREIGN KEY (execution_id) REFERENCES workflow_executions(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_workflow_execution_steps_execution
+        ON workflow_execution_steps(execution_id);
+      CREATE INDEX IF NOT EXISTS idx_workflow_execution_steps_status
+        ON workflow_execution_steps(status);
+    `);
+
+    logger.info('Migration 004: Workflow orchestration tables created successfully');
+  },
+};
+
+// Migration 005: Enterprise features (RBAC, multi-tenancy, audit, usage tracking)
+export const migration005: Migration = {
+  version: 5,
+  name: 'enterprise_features',
+  up: (db) => {
+    // Tenants table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS tenants (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        metadata_json TEXT DEFAULT '{}',
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_tenants_name
+        ON tenants(name);
+      CREATE INDEX IF NOT EXISTS idx_tenants_enabled
+        ON tenants(enabled);
+    `);
+
+    // Add tenant_id to api_keys table
+    db.exec(`
+      ALTER TABLE api_keys ADD COLUMN tenant_id TEXT REFERENCES tenants(id);
+      CREATE INDEX IF NOT EXISTS idx_api_keys_tenant ON api_keys(tenant_id);
+    `);
+
+    // RBAC: Roles table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS rbac_roles (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        tenant_id TEXT REFERENCES tenants(id),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(name, tenant_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_rbac_roles_name
+        ON rbac_roles(name);
+      CREATE INDEX IF NOT EXISTS idx_rbac_roles_tenant
+        ON rbac_roles(tenant_id);
+    `);
+
+    // RBAC: Permissions table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS rbac_permissions (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        resource TEXT NOT NULL,
+        action TEXT NOT NULL,
+        description TEXT DEFAULT ''
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_rbac_permissions_resource
+        ON rbac_permissions(resource);
+    `);
+
+    // RBAC: Role-Permission mapping
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS rbac_role_permissions (
+        role_id TEXT NOT NULL,
+        permission_id TEXT NOT NULL,
+        PRIMARY KEY (role_id, permission_id),
+        FOREIGN KEY (role_id) REFERENCES rbac_roles(id) ON DELETE CASCADE,
+        FOREIGN KEY (permission_id) REFERENCES rbac_permissions(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_rbac_role_permissions_role
+        ON rbac_role_permissions(role_id);
+    `);
+
+    // RBAC: API Key-Role mapping
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS rbac_api_key_roles (
+        api_key_id TEXT NOT NULL,
+        role_id TEXT NOT NULL,
+        PRIMARY KEY (api_key_id, role_id),
+        FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE CASCADE,
+        FOREIGN KEY (role_id) REFERENCES rbac_roles(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_rbac_api_key_roles_key
+        ON rbac_api_key_roles(api_key_id);
+    `);
+
+    // Audit log table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id TEXT PRIMARY KEY,
+        timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+        api_key_id TEXT,
+        tenant_id TEXT,
+        action TEXT NOT NULL,
+        resource_type TEXT NOT NULL,
+        resource_id TEXT,
+        server_id TEXT,
+        status TEXT NOT NULL CHECK(status IN ('success', 'failure')),
+        duration_ms INTEGER,
+        metadata_json TEXT DEFAULT '{}',
+        error TEXT,
+        FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE SET NULL,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE SET NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_audit_timestamp
+        ON audit_log(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_audit_tenant
+        ON audit_log(tenant_id);
+      CREATE INDEX IF NOT EXISTS idx_audit_action
+        ON audit_log(action);
+      CREATE INDEX IF NOT EXISTS idx_audit_resource_type
+        ON audit_log(resource_type);
+    `);
+
+    // Usage metrics table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS usage_metrics (
+        id TEXT PRIMARY KEY,
+        timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+        api_key_id TEXT,
+        tenant_id TEXT,
+        server_id TEXT,
+        action_type TEXT NOT NULL,
+        count INTEGER NOT NULL DEFAULT 1,
+        duration_ms INTEGER,
+        tokens_used INTEGER DEFAULT 0,
+        cost_credits REAL DEFAULT 0,
+        metadata_json TEXT DEFAULT '{}',
+        FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE SET NULL,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE SET NULL,
+        FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE SET NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_usage_timestamp
+        ON usage_metrics(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_usage_tenant
+        ON usage_metrics(tenant_id);
+      CREATE INDEX IF NOT EXISTS idx_usage_api_key
+        ON usage_metrics(api_key_id);
+      CREATE INDEX IF NOT EXISTS idx_usage_server
+        ON usage_metrics(server_id);
+      CREATE INDEX IF NOT EXISTS idx_usage_action_type
+        ON usage_metrics(action_type);
+    `);
+
+    logger.info('Migration 005: Enterprise features tables created successfully');
+  },
+};
+
 // Export all migrations in order
-export const allMigrations: Migration[] = [migration001, migration002, migration003];
+export const allMigrations: Migration[] = [
+  migration001,
+  migration002,
+  migration003,
+  migration004,
+  migration005,
+];

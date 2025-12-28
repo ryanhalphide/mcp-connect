@@ -8,3 +8,4 @@ data/
 coverage/
 .vscode/
 *.db
+.vercel

@@ -8,6 +8,7 @@ export interface ApiKey {
   id: string;
   key: string;
   name: string;
+  tenantId: string | null;
   createdAt: string;
   lastUsedAt: string | null;
   enabled: boolean;
@@ -90,7 +91,7 @@ export class ApiKeyStore {
    */
   validateApiKey(key: string): ApiKey | null {
     const stmt = this.db.prepare(`
-      SELECT id, key, name, created_at, last_used_at, enabled, metadata
+      SELECT id, key, name, tenant_id, created_at, last_used_at, enabled, metadata
       FROM api_keys
       WHERE key = ? AND enabled = 1
     `);
@@ -99,6 +100,7 @@ export class ApiKeyStore {
       id: string;
       key: string;
       name: string;
+      tenant_id: string | null;
       created_at: string;
       last_used_at: string | null;
       enabled: number;
@@ -116,6 +118,7 @@ export class ApiKeyStore {
       id: row.id,
       key: row.key,
       name: row.name,
+      tenantId: row.tenant_id,
       createdAt: row.created_at,
       lastUsedAt: row.last_used_at,
       enabled: row.enabled === 1,

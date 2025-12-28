@@ -87,11 +87,14 @@ export const authMiddleware = createMiddleware(async (c, next) => {
 
   // Attach key info to context for use in handlers
   c.set('apiKey', keyInfo);
+  c.set('apiKeyId', keyInfo.id);
+  c.set('tenantId', keyInfo.tenantId);
 
   logger.info(
     {
       keyId: keyInfo.id,
       keyName: keyInfo.name,
+      tenantId: keyInfo.tenantId,
       method: c.req.method,
       path: c.req.path,
     },
@@ -113,10 +116,13 @@ export const optionalAuthMiddleware = createMiddleware(async (c, next) => {
     const keyInfo = apiKeyStore.validateApiKey(apiKey);
     if (keyInfo) {
       c.set('apiKey', keyInfo);
+      c.set('apiKeyId', keyInfo.id);
+      c.set('tenantId', keyInfo.tenantId);
       logger.info(
         {
           keyId: keyInfo.id,
           keyName: keyInfo.name,
+          tenantId: keyInfo.tenantId,
           method: c.req.method,
           path: c.req.path,
         },

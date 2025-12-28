@@ -11,6 +11,7 @@ import { resourcesApi } from './api/resources.js';
 import { promptsApi } from './api/prompts.js';
 import { searchApi } from './api/search.js';
 import { samplingApi } from './api/sampling.js';
+import { workflowsApi } from './api/workflows.js';
 import { healthApi } from './api/health.js';
 import { webhookApi } from './api/webhook.js';
 import { monitorApi } from './api/monitor.js';
@@ -24,6 +25,9 @@ import { templatesApi } from './api/templates.js';
 import { webhookSubscriptionsApi } from './api/webhookSubscriptions.js';
 import { sseApi } from './api/sse.js';
 import { prometheusApi } from './api/prometheus.js';
+import { tenantsApi } from './api/tenants.js';
+import { rbacApi } from './api/rbac.js';
+import { usageApi } from './api/usage.js';
 import { connectionPool } from './core/pool.js';
 import { toolRegistry } from './core/registry.js';
 import { resourceRegistry } from './core/resourceRegistry.js';
@@ -38,6 +42,7 @@ import { initializeAuditLogger } from './observability/auditLog.js';
 import { registerBuiltInTemplates } from './seed/builtInTemplates.js';
 import { initializeWebhookStore } from './storage/webhooks.js';
 import { webhookDeliveryService } from './core/webhookDelivery.js';
+import { initializeRBAC } from './rbac/policy.js';
 
 const app = new Hono();
 
@@ -83,6 +88,9 @@ app.route('/api/search', searchApi);
 app.use('/api/sampling/*', authMiddleware);
 app.route('/api/sampling', samplingApi);
 
+app.use('/api/workflows/*', authMiddleware);
+app.route('/api/workflows', workflowsApi);
+
 app.use('/api/webhook/invoke/*', authMiddleware);
 app.route('/api/webhook', webhookApi);
 
@@ -114,6 +122,16 @@ app.route('/api/webhooks/subscriptions', webhookSubscriptionsApi);
 // Mount SSE streaming API (requires auth for events stream)
 app.use('/api/sse/events', authMiddleware);
 app.route('/api/sse', sseApi);
+
+// Mount enterprise APIs (requires auth and permissions)
+app.use('/api/tenants/*', authMiddleware);
+app.route('/api/tenants', tenantsApi);
+
+app.use('/api/rbac/*', authMiddleware);
+app.route('/api/rbac', rbacApi);
+
+app.use('/api/usage-metrics/*', authMiddleware);
+app.route('/api/usage-metrics', usageApi);
 
 // Mount Prometheus metrics endpoint (public - standard for metrics scraping)
 app.route('/metrics', prometheusApi);
@@ -160,6 +178,11 @@ async function startup() {
   logger.info('Initializing audit logger...');
   initializeAuditLogger(serverDatabase.getDatabase());
   logger.info('Audit logger initialized');
+
+  // Initialize RBAC system (after migrations)
+  logger.info('Initializing RBAC system...');
+  initializeRBAC(serverDatabase.getDatabase());
+  logger.info('RBAC system initialized');
 
   // Initialize webhook store and delivery service (after migrations)
   logger.info('Initializing webhook service...');
@@ -278,6 +301,7 @@ startup().then(() => {
           prompts: `http://localhost:${info.port}/api/prompts (auth required)`,
           search: `http://localhost:${info.port}/api/search (auth required)`,
           sampling: `http://localhost:${info.port}/api/sampling (auth required)`,
+          workflows: `http://localhost:${info.port}/api/workflows (auth required)`,
           webhook: `http://localhost:${info.port}/api/webhook (auth required)`,
           groups: `http://localhost:${info.port}/api/groups (auth required)`,
           favorites: `http://localhost:${info.port}/api/favorites (auth required)`,
@@ -287,6 +311,9 @@ startup().then(() => {
           templates: `http://localhost:${info.port}/api/templates (auth required)`,
           webhooks: `http://localhost:${info.port}/api/webhooks/subscriptions (auth required)`,
           sse: `http://localhost:${info.port}/api/sse/events (auth required)`,
+          tenants: `http://localhost:${info.port}/api/tenants (auth + tenants:read)`,
+          rbac: `http://localhost:${info.port}/api/rbac (auth + rbac:read)`,
+          usageMetrics: `http://localhost:${info.port}/api/usage-metrics (auth + usage:read)`,
           metrics: `http://localhost:${info.port}/metrics`,
           monitor: `http://localhost:${info.port}/api/monitor`,
           dashboard: `http://localhost:${info.port}/api/monitor/dashboard`,

@@ -20,10 +20,29 @@ export const HttpTransportSchema = z.object({
   headers: z.record(z.string()).optional(),
 });
 
+export const WebSocketTransportSchema = z.object({
+  type: z.literal('websocket'),
+  url: z.string().url(), // ws:// or wss:// URL
+  headers: z.record(z.string()).optional(),
+  reconnect: z.object({
+    enabled: z.boolean().default(true),
+    maxAttempts: z.number().int().min(0).max(100).default(10),
+    initialDelayMs: z.number().int().min(100).max(60000).default(1000),
+    maxDelayMs: z.number().int().min(1000).max(300000).default(30000),
+    backoffMultiplier: z.number().min(1).max(5).default(2),
+  }).default({}),
+  heartbeat: z.object({
+    enabled: z.boolean().default(true),
+    intervalMs: z.number().int().min(5000).max(300000).default(30000),
+    timeoutMs: z.number().int().min(1000).max(60000).default(10000),
+  }).default({}),
+});
+
 export const TransportConfigSchema = z.discriminatedUnion('type', [
   StdioTransportSchema,
   SseTransportSchema,
   HttpTransportSchema,
+  WebSocketTransportSchema,
 ]);
 
 // Auth configuration schemas
@@ -135,6 +154,7 @@ export type ToolSearchOptions = z.infer<typeof ToolSearchOptionsSchema>;
 export type StdioTransport = z.infer<typeof StdioTransportSchema>;
 export type SseTransport = z.infer<typeof SseTransportSchema>;
 export type HttpTransport = z.infer<typeof HttpTransportSchema>;
+export type WebSocketTransport = z.infer<typeof WebSocketTransportSchema>;
 export type TransportConfig = z.infer<typeof TransportConfigSchema>;
 
 export type NoAuth = z.infer<typeof NoAuthSchema>;

@@ -5,12 +5,14 @@ import type { MCPServerConfig, TransportConfig, AuthConfig } from '../core/types
 import { getAuthHeaders, clearAuthCache } from '../core/auth.js';
 import { createChildLogger } from '../observability/logger.js';
 import { LenientJsonSchemaValidator } from './lenientValidator.js';
+import { createWebSocketTransport, type RobustWebSocketTransport } from './websocketTransport.js';
 
 const logger = createChildLogger({ module: 'mcp-client' });
 
 export interface MCPClientWrapper {
   client: Client;
   disconnect: () => Promise<void>;
+  transport?: RobustWebSocketTransport; // Exposed for WebSocket state inspection
 }
 
 function createStdioTransport(
@@ -107,6 +109,14 @@ export async function createMCPClient(serverConfig: MCPServerConfig): Promise<MC
     case 'http':
       mcpTransport = await createHttpTransport(id, transport, auth);
       break;
+    case 'websocket':
+      mcpTransport = createWebSocketTransport(id, name, {
+        url: transport.url,
+        headers: transport.headers,
+        reconnect: transport.reconnect,
+        heartbeat: transport.heartbeat,
+      });
+      break;
     default:
       throw new Error(`Unsupported transport type: ${(transport as { type: string }).type}`);
   }
@@ -124,6 +134,11 @@ export async function createMCPClient(serverConfig: MCPServerConfig): Promise<MC
 
   logger.info({ serverId: id, serverName: name }, 'MCP client connected');
 
+  // For WebSocket transport, expose the transport for state inspection
+  const wsTransport = transport.type === 'websocket'
+    ? mcpTransport as RobustWebSocketTransport
+    : undefined;
+
   return {
     client,
     disconnect: async () => {
@@ -131,6 +146,7 @@ export async function createMCPClient(serverConfig: MCPServerConfig): Promise<MC
       clearAuthCache(id);
       await client.close();
     },
+    transport: wsTransport,
   };
 }
 
