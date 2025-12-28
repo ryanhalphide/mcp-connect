@@ -25,12 +25,12 @@
       }
     },
     {
-      "name": "fetch",
-      "description": "HTTP fetch capabilities via MCP",
+      "name": "everything",
+      "description": "MCP server that exercises all protocol features",
       "transport": {
         "type": "stdio",
         "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-fetch"]
+        "args": ["-y", "@modelcontextprotocol/server-everything"]
       },
       "auth": { "type": "none" },
       "healthCheck": {
@@ -43,8 +43,8 @@
         "requestsPerDay": 5000
       },
       "metadata": {
-        "tags": ["http", "fetch", "web"],
-        "category": "network",
+        "tags": ["demo", "testing", "all-features"],
+        "category": "utility",
         "version": "1.0.0"
       }
     },
