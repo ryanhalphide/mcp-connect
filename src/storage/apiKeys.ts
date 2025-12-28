@@ -79,6 +79,7 @@ export class ApiKeyStore {
       id,
       key,
       name,
+      tenantId: null,
       createdAt,
       lastUsedAt: null,
       enabled: true,
@@ -144,7 +145,7 @@ export class ApiKeyStore {
    */
   getAllApiKeys(): Omit<ApiKey, 'key'>[] {
     const stmt = this.db.prepare(`
-      SELECT id, name, created_at, last_used_at, enabled, metadata
+      SELECT id, name, tenant_id, created_at, last_used_at, enabled, metadata
       FROM api_keys
       ORDER BY created_at DESC
     `);
@@ -152,6 +153,7 @@ export class ApiKeyStore {
     const rows = stmt.all() as {
       id: string;
       name: string;
+      tenant_id: string | null;
       created_at: string;
       last_used_at: string | null;
       enabled: number;
@@ -161,6 +163,7 @@ export class ApiKeyStore {
     return rows.map((row) => ({
       id: row.id,
       name: row.name,
+      tenantId: row.tenant_id,
       createdAt: row.created_at,
       lastUsedAt: row.last_used_at,
       enabled: row.enabled === 1,
@@ -173,7 +176,7 @@ export class ApiKeyStore {
    */
   getApiKeyById(id: string): Omit<ApiKey, 'key'> | null {
     const stmt = this.db.prepare(`
-      SELECT id, name, created_at, last_used_at, enabled, metadata
+      SELECT id, name, tenant_id, created_at, last_used_at, enabled, metadata
       FROM api_keys
       WHERE id = ?
     `);
@@ -181,6 +184,7 @@ export class ApiKeyStore {
     const row = stmt.get(id) as {
       id: string;
       name: string;
+      tenant_id: string | null;
       created_at: string;
       last_used_at: string | null;
       enabled: number;
@@ -194,6 +198,7 @@ export class ApiKeyStore {
     return {
       id: row.id,
       name: row.name,
+      tenantId: row.tenant_id,
       createdAt: row.created_at,
       lastUsedAt: row.last_used_at,
       enabled: row.enabled === 1,

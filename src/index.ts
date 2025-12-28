@@ -3,8 +3,12 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { compress } from 'hono/compress';
+import { secureHeaders } from 'hono/secure-headers';
 import { requestLoggingMiddleware } from './observability/requestLogger.js';
 import { authMiddleware } from './middleware/auth.js';
+import { errorHandlerMiddleware, requestIdMiddleware, notFoundHandler } from './middleware/errorHandler.js';
+import { shutdownManager, shutdownMiddleware } from './core/gracefulShutdown.js';
 import { serversApi } from './api/servers.js';
 import { toolsApi } from './api/tools.js';
 import { resourcesApi } from './api/resources.js';
@@ -46,22 +50,21 @@ import { initializeRBAC } from './rbac/policy.js';
 
 const app = new Hono();
 
-// Middleware
-app.use('*', cors());
-app.use('*', requestLoggingMiddleware);
-
-// Error handling
-app.onError((err, c) => {
-  logger.error({ error: err.message, stack: err.stack }, 'Unhandled error');
-  return c.json(
-    {
-      success: false,
-      error: err.message,
-      timestamp: new Date().toISOString(),
-    },
-    500
-  );
-});
+// Production middleware stack
+app.use('*', requestIdMiddleware);        // Generate/propagate request IDs
+app.use('*', secureHeaders());            // Security headers (X-Frame-Options, etc.)
+app.use('*', cors({
+  origin: process.env.CORS_ORIGIN || '*',
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+  exposeHeaders: ['X-Request-ID', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset', 'Retry-After'],
+  credentials: true,
+  maxAge: 86400,
+}));
+app.use('*', compress());                 // Gzip compression
+app.use('*', shutdownMiddleware());       // Reject requests during shutdown
+app.use('*', requestLoggingMiddleware);   // Request logging
+app.use('*', errorHandlerMiddleware);     // Centralized error handling
 
 // Mount public API routes (no auth required)
 app.route('/api/health', healthApi);
@@ -144,6 +147,9 @@ app.route('/api/monitor', monitorApi);
 
 // Serve static files from public directory
 app.use('/*', serveStatic({ root: './public' }));
+
+// 404 handler for unmatched API routes
+app.notFound(notFoundHandler);
 
 // Startup function
 async function startup() {
@@ -260,29 +266,29 @@ async function startup() {
   logger.info({ toolCount, resourceCount, promptCount }, 'Tools, resources, and prompts registered');
 }
 
-// Shutdown function
-async function shutdown() {
-  logger.info('Shutting down MCP Connect...');
-
-  // Stop webhook delivery service
+// Register shutdown handlers with priority (lower = first)
+shutdownManager.register('webhook-service', async () => {
   webhookDeliveryService.stop();
+}, 10, 5000);
 
-  // Shutdown cache (cleanup interval)
+shutdownManager.register('cache', async () => {
   shutdownCache();
+}, 20, 3000);
 
-  // Shutdown rate limiter (flush pending writes)
+shutdownManager.register('rate-limiter', async () => {
   shutdownRateLimiter();
+}, 30, 3000);
 
+shutdownManager.register('connection-pool', async () => {
   await connectionPool.disconnectAll();
+}, 40, 10000);
+
+shutdownManager.register('database', async () => {
   serverDatabase.close();
+}, 50, 5000);
 
-  logger.info('Shutdown complete');
-  process.exit(0);
-}
-
-// Handle shutdown signals
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+// Setup signal handlers for graceful shutdown
+shutdownManager.setupSignalHandlers();
 
 // Start server
 const port = parseInt(process.env.PORT || '3000', 10);

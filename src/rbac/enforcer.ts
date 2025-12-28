@@ -4,12 +4,21 @@
  */
 
 import type { Context, Next } from 'hono';
-import { getDb } from '../storage/db.js';
+import { serverDatabase } from '../storage/db.js';
 import { hasPermission } from './policy.js';
-import { apiResponse } from '../utils/responses.js';
 import { createChildLogger } from '../observability/logger.js';
 
 const logger = createChildLogger({ module: 'rbac-enforcer' });
+
+// Helper to create API response
+function apiResponse<T>(data: T | null = null, success = true, error?: string) {
+  return {
+    success,
+    data: data as T,
+    error,
+    timestamp: new Date().toISOString(),
+  };
+}
 
 /**
  * Request context with API key ID attached by auth middleware
@@ -32,7 +41,7 @@ interface AuthContext {
  */
 export function checkPermission(permission: string) {
   return async (c: Context, next: Next) => {
-    const db = getDb();
+    const db = serverDatabase.getDatabase();
 
     // Get API key ID from context (set by auth middleware)
     const apiKeyId = c.get('apiKeyId') as string | undefined;
@@ -84,7 +93,7 @@ export function checkPermission(permission: string) {
  */
 export function checkAnyPermission(permissions: string[]) {
   return async (c: Context, next: Next) => {
-    const db = getDb();
+    const db = serverDatabase.getDatabase();
     const apiKeyId = c.get('apiKeyId') as string | undefined;
 
     if (!apiKeyId) {
@@ -132,7 +141,7 @@ export function checkAnyPermission(permissions: string[]) {
  */
 export function checkAllPermissions(permissions: string[]) {
   return async (c: Context, next: Next) => {
-    const db = getDb();
+    const db = serverDatabase.getDatabase();
     const apiKeyId = c.get('apiKeyId') as string | undefined;
 
     if (!apiKeyId) {
