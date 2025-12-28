@@ -11,6 +11,7 @@ import { healthApi } from './api/health.js';
 import { webhookApi } from './api/webhook.js';
 import { monitorApi } from './api/monitor.js';
 import { keysApi } from './api/keys.js';
+import { groupsApi } from './api/groups.js';
 import { connectionPool } from './core/pool.js';
 import { toolRegistry } from './core/registry.js';
 import { serverDatabase } from './storage/db.js';
@@ -51,6 +52,9 @@ app.route('/api/tools', toolsApi);
 
 app.use('/api/webhook/invoke/*', authMiddleware);
 app.route('/api/webhook', webhookApi);
+
+app.use('/api/groups/*', authMiddleware);
+app.route('/api/groups', groupsApi);
 
 // Mount monitoring routes with optional auth (dashboard public, sensitive endpoints protected)
 app.use('/api/monitor/stats', authMiddleware);
@@ -121,6 +125,7 @@ startup().then(() => {
           servers: `http://localhost:${info.port}/api/servers (auth required)`,
           tools: `http://localhost:${info.port}/api/tools (auth required)`,
           webhook: `http://localhost:${info.port}/api/webhook (auth required)`,
+          groups: `http://localhost:${info.port}/api/groups (auth required)`,
           monitor: `http://localhost:${info.port}/api/monitor`,
           dashboard: `http://localhost:${info.port}/api/monitor/dashboard`,
         },

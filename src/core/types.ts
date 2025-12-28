@@ -73,6 +73,20 @@ export const ServerMetadataSchema = z.object({
   maintainer: z.string().optional(),
 });
 
+// Server Group schema
+export const ServerGroupSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1).max(100),
+  description: z.string().default(''),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default('#6366f1'),
+  icon: z.string().max(50).optional(),
+  sortOrder: z.number().int().default(0),
+  createdAt: z.date().default(() => new Date()),
+  updatedAt: z.date().default(() => new Date()),
+});
+
+export type ServerGroup = z.infer<typeof ServerGroupSchema>;
+
 // Main MCP Server Configuration schema
 export const MCPServerConfigSchema = z.object({
   id: z.string().uuid(),
@@ -83,6 +97,7 @@ export const MCPServerConfigSchema = z.object({
   healthCheck: HealthCheckConfigSchema.default({}),
   rateLimits: RateLimitConfigSchema.default({}),
   metadata: ServerMetadataSchema.default({}),
+  groupId: z.string().uuid().nullable().default(null),
   enabled: z.boolean().default(true),
   createdAt: z.date().default(() => new Date()),
   updatedAt: z.date().default(() => new Date()),

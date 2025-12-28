@@ -76,6 +76,7 @@ export function loadServersFromConfig(configPath: string = './config/servers.jso
           healthCheck: serverConfig.healthCheck,
           rateLimits: serverConfig.rateLimits,
           metadata: serverConfig.metadata,
+          groupId: null,
           enabled: true,
         });
         loaded++;
