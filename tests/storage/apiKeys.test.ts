@@ -1,13 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { unlinkSync, existsSync, mkdirSync } from 'node:fs';
-
-// Ensure data directory exists BEFORE importing the module
-// (the module creates a singleton on import)
-if (!existsSync('./data')) {
-  mkdirSync('./data', { recursive: true });
-}
-
 import { ApiKeyStore } from '../../src/storage/apiKeys.js';
+import { unlinkSync, existsSync } from 'node:fs';
 
 const TEST_DB_PATH = './data/test-api-keys.db';
 
