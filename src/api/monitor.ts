@@ -124,6 +124,11 @@ monitorApi.get('/metrics', (c) => {
         total: servers.length,
         connected: connectedCount,
         errored: erroredCount,
+        // Include server statuses for visibility (no sensitive data)
+        list: connectionStatuses.map((s) => ({
+          name: s.name,
+          status: s.status,
+        })),
       },
       tools: {
         registered: toolRegistry.getToolCount(),
