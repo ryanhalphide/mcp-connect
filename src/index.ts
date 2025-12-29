@@ -212,6 +212,19 @@ async function startup() {
   logger.info({ serverCount: servers.length }, 'Found enabled servers');
 
   for (const server of servers) {
+    // Check for required environment variables before attempting to connect
+    const requiredEnvVars = server.metadata.requiresEnv as string[] | undefined;
+    if (requiredEnvVars && requiredEnvVars.length > 0) {
+      const missingVars = requiredEnvVars.filter((v) => !process.env[v] || process.env[v]?.startsWith('your_'));
+      if (missingVars.length > 0) {
+        logger.warn(
+          { serverId: server.id, serverName: server.name, missingVars },
+          'Skipping server - missing required environment variables'
+        );
+        continue;
+      }
+    }
+
     try {
       logger.info({ serverId: server.id, serverName: server.name }, 'Auto-connecting to server');
       await connectionPool.connect(server);
