@@ -1548,20 +1548,263 @@
       color: var(--text-primary);
     }
 
+    /* Notifications Panel */
+    .notifications-wrapper {
+      position: relative;
+    }
+
+    .notifications-btn {
+      position: relative;
+      width: 40px;
+      height: 40px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 18px;
+      transition: var(--transition);
+    }
+
+    .notifications-btn:hover {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    .notification-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 18px;
+      height: 18px;
+      background: var(--error);
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 600;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .notification-badge.hidden {
+      display: none;
+    }
+
+    .notifications-panel {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 8px;
+      width: 380px;
+      max-height: 480px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      z-index: 200;
+      display: none;
+      overflow: hidden;
+    }
+
+    .notifications-panel.active {
+      display: block;
+    }
+
+    .notifications-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .notifications-title {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .notifications-clear {
+      font-size: 12px;
+      color: var(--accent-primary);
+      cursor: pointer;
+      background: none;
+      border: none;
+    }
+
+    .notifications-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .notification-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      transition: background 0.2s ease;
+    }
+
+    .notification-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .notification-item:last-child {
+      border-bottom: none;
+    }
+
+    .notification-item.unread {
+      background: rgba(99, 102, 241, 0.05);
+      border-left: 3px solid var(--accent-primary);
+      padding-left: 13px;
+    }
+
+    .notification-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .notification-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .notification-message {
+      font-size: 13px;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+
+    .notification-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Quick Actions */
+    .quick-actions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+    }
+
+    .quick-action-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 20px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: var(--transition);
+      color: var(--text-secondary);
+    }
+
+    .quick-action-btn:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--accent-primary);
+      color: var(--accent-primary);
+      transform: translateY(-2px);
+    }
+
+    .quick-action-icon {
+      font-size: 24px;
+    }
+
+    .quick-action-label {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    /* Performance Chart Grid */
+    .metrics-chart-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    @media (max-width: 1200px) {
+      .metrics-chart-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Mobile Menu */
+    .mobile-menu-btn {
+      display: none;
+      width: 40px;
+      height: 40px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 20px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 99;
+    }
+
+    .sidebar-overlay.active {
+      display: block;
+    }
+
     /* Responsive */
+    @media (max-width: 1024px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+
+      .sidebar.mobile-open {
+        transform: translateX(0);
+      }
+
+      .main-content {
+        margin-left: 0;
+      }
+
+      .mobile-menu-btn {
+        display: flex;
+      }
+    }
+
     @media (max-width: 768px) {
-      .sidebar { display: none; }
-      .main-content { margin-left: 0; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .servers-grid { grid-template-columns: 1fr; }
       .tools-grid { grid-template-columns: 1fr; }
       .page-header { flex-direction: column; gap: 16px; align-items: flex-start; }
       .top-bar { padding: 12px 16px; }
       .page-content { padding: 16px; }
+      .quick-actions-grid { grid-template-columns: repeat(2, 1fr); }
+      .notifications-panel { width: 320px; right: -50px; }
+      .dashboard-grid { grid-template-columns: 1fr; }
+      .search-box { width: 200px; }
+    }
+
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .quick-actions-grid { grid-template-columns: 1fr; }
+      .notifications-panel { width: 290px; right: -80px; }
+      .top-bar-actions { gap: 8px; }
+      .search-box { display: none; }
     }
   </style>
 </head>
 <body>
+  <!-- Mobile sidebar overlay -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
   <div class="app-container">
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
@@ -1592,6 +1835,16 @@
             <span>Tools</span>
             <span class="nav-item-badge" id="nav-tool-count">0</span>
           </div>
+          <div class="nav-item" data-page="resources">
+            <span class="nav-item-icon">&#x1F4C2;</span>
+            <span>Resources</span>
+            <span class="nav-item-badge" id="nav-resource-count">0</span>
+          </div>
+          <div class="nav-item" data-page="prompts">
+            <span class="nav-item-icon">&#x1F4AC;</span>
+            <span>Prompts</span>
+            <span class="nav-item-badge" id="nav-prompt-count">0</span>
+          </div>
         </div>
 
         <div class="nav-section">
@@ -1599,6 +1852,10 @@
           <div class="nav-item" data-page="templates">
             <span class="nav-item-icon">&#x1F4CB;</span>
             <span>Templates</span>
+          </div>
+          <div class="nav-item" data-page="api-keys">
+            <span class="nav-item-icon">&#x1F511;</span>
+            <span>API Keys</span>
           </div>
           <div class="nav-item" data-page="groups">
             <span class="nav-item-icon">&#x1F4C1;</span>
@@ -1655,10 +1912,13 @@
       </div>
 
       <header class="top-bar">
-        <div class="breadcrumb">
-          <span>MCP Connect</span>
-          <span class="breadcrumb-divider">/</span>
-          <span class="breadcrumb-current" id="current-page">Dashboard</span>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <button class="mobile-menu-btn" onclick="toggleMobileSidebar()" title="Menu">&#x2630;</button>
+          <div class="breadcrumb">
+            <span>MCP Connect</span>
+            <span class="breadcrumb-divider">/</span>
+            <span class="breadcrumb-current" id="current-page">Dashboard</span>
+          </div>
         </div>
 
         <div class="top-bar-actions">
@@ -1667,6 +1927,26 @@
             <div class="live-dot"></div>
             <span>LIVE</span>
           </div>
+
+          <!-- Notifications -->
+          <div class="notifications-wrapper">
+            <button class="notifications-btn" onclick="toggleNotifications()" title="Notifications">
+              &#x1F514;
+              <span class="notification-badge hidden" id="notification-badge">0</span>
+            </button>
+            <div class="notifications-panel" id="notifications-panel">
+              <div class="notifications-header">
+                <span class="notifications-title">Notifications</span>
+                <button class="notifications-clear" onclick="clearNotifications()">Clear all</button>
+              </div>
+              <div class="notifications-list" id="notifications-list">
+                <div class="notification-item" style="justify-content: center; padding: 40px;">
+                  <span style="color: var(--text-muted);">No notifications yet</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <button class="btn btn-icon" onclick="refreshData()" title="Refresh">&#x21BB;</button>
           <button class="btn btn-icon" onclick="showApiKeyBanner()" title="API Key Settings">&#x1F511;</button>
           <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme" id="theme-toggle">&#x1F319;</button>
@@ -1684,6 +1964,49 @@
             <div>
               <h1 class="page-title">Dashboard</h1>
               <p class="page-subtitle">Monitor your MCP infrastructure at a glance</p>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="card" style="margin-bottom: 24px;">
+            <div class="card-header">
+              <h3 class="card-title">&#x26A1; Quick Actions</h3>
+            </div>
+            <div class="card-body">
+              <div class="quick-actions-grid">
+                <button class="quick-action-btn" onclick="showAddServerModal()">
+                  <span class="quick-action-icon">&#x2795;</span>
+                  <span class="quick-action-label">Add Server</span>
+                </button>
+                <button class="quick-action-btn" onclick="showPage('tools')">
+                  <span class="quick-action-icon">&#x1F6E0;</span>
+                  <span class="quick-action-label">Browse Tools</span>
+                </button>
+                <button class="quick-action-btn" onclick="showPage('templates')">
+                  <span class="quick-action-icon">&#x1F4CB;</span>
+                  <span class="quick-action-label">Deploy Template</span>
+                </button>
+                <button class="quick-action-btn" onclick="exportConfig()">
+                  <span class="quick-action-icon">&#x1F4E4;</span>
+                  <span class="quick-action-label">Export Config</span>
+                </button>
+                <button class="quick-action-btn" onclick="showImportModal()">
+                  <span class="quick-action-icon">&#x1F4E5;</span>
+                  <span class="quick-action-label">Import Config</span>
+                </button>
+                <button class="quick-action-btn" onclick="showPage('api-keys')">
+                  <span class="quick-action-icon">&#x1F511;</span>
+                  <span class="quick-action-label">Manage Keys</span>
+                </button>
+                <button class="quick-action-btn" onclick="showPage('settings')">
+                  <span class="quick-action-icon">&#x2699;</span>
+                  <span class="quick-action-label">Settings</span>
+                </button>
+                <button class="quick-action-btn" onclick="refreshData()">
+                  <span class="quick-action-icon">&#x1F504;</span>
+                  <span class="quick-action-label">Refresh All</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1928,6 +2251,22 @@
               <div class="stat-card-label">Total Tools</div>
             </div>
           </div>
+          <!-- Performance Charts -->
+          <div class="metrics-chart-grid">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">&#x23F1; Response Times by Server</h3></div>
+              <div class="chart-container">
+                <canvas id="response-time-chart"></canvas>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">&#x1F4CA; Request Distribution</h3></div>
+              <div class="chart-container">
+                <canvas id="request-distribution-chart"></canvas>
+              </div>
+            </div>
+          </div>
+
           <div class="card" style="margin-top: 24px;">
             <div class="card-header"><h3 class="card-title">&#x1F4C8; Top Endpoints</h3></div>
             <div class="card-body no-padding">
@@ -1992,6 +2331,86 @@
                   <p>Add a webhook to receive real-time event notifications</p>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resources Page -->
+        <div id="resources-page" class="page-container" style="display: none;">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Resources</h1>
+              <p class="page-subtitle">Browse and read MCP server resources</p>
+            </div>
+            <div class="header-actions">
+              <input type="text" class="search-box" id="resource-search" placeholder="Search resources..." style="width: 250px;">
+              <button class="btn btn-secondary" onclick="loadResourcesPage()">Refresh</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <div id="resources-list" class="tools-grid">
+                <div class="spinner" style="margin: 40px auto;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Prompts Page -->
+        <div id="prompts-page" class="page-container" style="display: none;">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Prompts</h1>
+              <p class="page-subtitle">Browse and test MCP server prompts</p>
+            </div>
+            <div class="header-actions">
+              <input type="text" class="search-box" id="prompt-search" placeholder="Search prompts..." style="width: 250px;">
+              <button class="btn btn-secondary" onclick="loadPromptsPage()">Refresh</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <div id="prompts-list" class="tools-grid">
+                <div class="spinner" style="margin: 40px auto;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- API Keys Page -->
+        <div id="api-keys-page" class="page-container" style="display: none;">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">API Keys</h1>
+              <p class="page-subtitle">Manage API keys for accessing MCP Connect</p>
+            </div>
+            <button class="btn btn-primary" onclick="showCreateApiKeyModal()">+ Create API Key</button>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">&#x1F511; Active API Keys</h3>
+            </div>
+            <div class="card-body">
+              <div id="api-keys-list">
+                <div class="spinner" style="margin: 40px auto;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+              <h3 class="card-title">&#x1F4DD; API Key Usage</h3>
+            </div>
+            <div class="card-body">
+              <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                API keys are used to authenticate requests to MCP Connect. Include the key in the <code>Authorization</code> header:
+              </p>
+              <div class="result-output" style="margin-bottom: 16px;">
+Authorization: Bearer YOUR_API_KEY</div>
+              <p style="color: var(--text-muted); font-size: 13px;">
+                Keys have permissions based on their scope. Store keys securely and rotate them regularly.
+              </p>
             </div>
           </div>
         </div>
@@ -2235,8 +2654,11 @@
         'dashboard': 'dashboard-page',
         'servers': 'servers-page',
         'tools': 'tools-page',
+        'resources': 'resources-page',
+        'prompts': 'prompts-page',
         'activity': 'activity-page',
         'templates': 'templates-page',
+        'api-keys': 'api-keys-page',
         'groups': 'groups-page',
         'favorites': 'favorites-page',
         'metrics': 'metrics-page',
@@ -2254,9 +2676,13 @@
       switch (pageName) {
         case 'servers': loadServersPage(); break;
         case 'tools': loadToolsPage(); break;
+        case 'resources': loadResourcesPage(); break;
+        case 'prompts': loadPromptsPage(); break;
         case 'templates': loadTemplatesPage(); break;
+        case 'api-keys': loadApiKeysPage(); break;
         case 'groups': loadGroupsPage(); break;
         case 'favorites': loadFavoritesPage(); break;
+        case 'activity': loadActivityPage(); break;
         case 'metrics': loadMetricsPage(); break;
         case 'webhooks': loadWebhooksPage(); break;
         case 'settings': loadSettingsPage(); break;
@@ -3369,6 +3795,834 @@
       }
     }
 
+    // ========================================
+    // Resources Page
+    // ========================================
+    async function loadResourcesPage() {
+      try {
+        const res = await fetch(`${API_BASE}/resources`, { headers: getAuthHeaders() });
+        const json = await res.json();
+
+        if (json.success && json.data?.resources) {
+          renderResources(json.data.resources);
+          document.getElementById('nav-resource-count').textContent = json.data.resources.length;
+        }
+      } catch (err) {
+        console.error('Failed to load resources:', err);
+        document.getElementById('resources-list').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x1F4C2;</div>
+            <div class="empty-state-title">Unable to load resources</div>
+            <p>Check that servers are connected</p>
+          </div>
+        `;
+      }
+    }
+
+    function renderResources(resources) {
+      const container = document.getElementById('resources-list');
+
+      if (!resources || resources.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x1F4C2;</div>
+            <div class="empty-state-title">No resources available</div>
+            <p>Connected servers haven't exposed any resources</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = resources.map(r => `
+        <div class="tool-card" onclick="showResourceModal('${encodeURIComponent(r.uri)}', '${encodeURIComponent(r.name)}', '${r.serverId}')">
+          <div class="tool-header">
+            <span class="tool-name">${r.name}</span>
+            <span class="badge badge-muted">${r.serverName || 'Unknown'}</span>
+          </div>
+          <div class="tool-description">${r.description || 'No description'}</div>
+          <div class="tool-meta">
+            <span class="tool-server">URI: ${r.uri}</span>
+          </div>
+          ${r.mimeType ? `<span class="badge badge-success" style="margin-top: 8px;">${r.mimeType}</span>` : ''}
+        </div>
+      `).join('');
+    }
+
+    async function showResourceModal(uri, name, serverId) {
+      openModal(`Resource: ${decodeURIComponent(name)}`, `
+        <div class="spinner" style="margin: 40px auto;"></div>
+      `, '');
+
+      try {
+        const res = await fetch(`${API_BASE}/resources/${serverId}/${encodeURIComponent(decodeURIComponent(uri))}`, {
+          headers: getAuthHeaders()
+        });
+        const json = await res.json();
+
+        if (json.success && json.data) {
+          const content = json.data.contents?.[0]?.text || JSON.stringify(json.data, null, 2);
+          document.getElementById('modal-body').innerHTML = `
+            <div class="form-group">
+              <label class="form-label">URI</label>
+              <div class="result-output">${decodeURIComponent(uri)}</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Content</label>
+              <div class="result-output" style="max-height: 400px;">${escapeHtml(content)}</div>
+            </div>
+          `;
+          document.getElementById('modal-footer').innerHTML = `
+            <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+            <button class="btn btn-primary" onclick="copyToClipboard(this, '${encodeURIComponent(content)}')">Copy Content</button>
+          `;
+        } else {
+          document.getElementById('modal-body').innerHTML = `
+            <div class="alert alert-warning">Failed to read resource: ${json.error || 'Unknown error'}</div>
+          `;
+        }
+      } catch (err) {
+        document.getElementById('modal-body').innerHTML = `
+          <div class="alert alert-warning">Failed to read resource</div>
+        `;
+      }
+    }
+
+    // ========================================
+    // Prompts Page
+    // ========================================
+    async function loadPromptsPage() {
+      try {
+        const res = await fetch(`${API_BASE}/prompts`, { headers: getAuthHeaders() });
+        const json = await res.json();
+
+        if (json.success && json.data?.prompts) {
+          renderPrompts(json.data.prompts);
+          document.getElementById('nav-prompt-count').textContent = json.data.prompts.length;
+        }
+      } catch (err) {
+        console.error('Failed to load prompts:', err);
+        document.getElementById('prompts-list').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x1F4AC;</div>
+            <div class="empty-state-title">Unable to load prompts</div>
+            <p>Check that servers are connected</p>
+          </div>
+        `;
+      }
+    }
+
+    function renderPrompts(prompts) {
+      const container = document.getElementById('prompts-list');
+
+      if (!prompts || prompts.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x1F4AC;</div>
+            <div class="empty-state-title">No prompts available</div>
+            <p>Connected servers haven't exposed any prompts</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = prompts.map(p => `
+        <div class="tool-card" onclick="showPromptModal('${encodeURIComponent(p.name)}', '${p.serverId}', ${JSON.stringify(p.arguments || []).replace(/"/g, '&quot;')})">
+          <div class="tool-header">
+            <span class="tool-name">${p.name}</span>
+            <span class="badge badge-muted">${p.serverName || 'Unknown'}</span>
+          </div>
+          <div class="tool-description">${p.description || 'No description'}</div>
+          ${p.arguments?.length > 0 ? `
+            <div class="tool-meta" style="margin-top: 8px;">
+              <span style="color: var(--text-muted);">Arguments: ${p.arguments.map(a => a.name).join(', ')}</span>
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
+    }
+
+    function showPromptModal(name, serverId, args) {
+      const argsHtml = args && args.length > 0 ? args.map(arg => `
+        <div class="form-group">
+          <label class="form-label">${arg.name} ${arg.required ? '<span style="color: var(--error);">*</span>' : ''}</label>
+          <input type="text" class="form-input" id="prompt-arg-${arg.name}" placeholder="${arg.description || ''}">
+        </div>
+      `).join('') : '<p style="color: var(--text-muted);">This prompt has no arguments</p>';
+
+      openModal(`Prompt: ${decodeURIComponent(name)}`, `
+        <form id="prompt-form">
+          ${argsHtml}
+        </form>
+        <div id="prompt-result"></div>
+      `, `
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="executePrompt('${name}', '${serverId}')">Get Prompt</button>
+      `);
+    }
+
+    async function executePrompt(name, serverId) {
+      const resultDiv = document.getElementById('prompt-result');
+      resultDiv.innerHTML = '<div class="spinner" style="margin: 20px auto;"></div>';
+
+      const form = document.getElementById('prompt-form');
+      const args = {};
+      form.querySelectorAll('input').forEach(el => {
+        const key = el.id.replace('prompt-arg-', '');
+        if (el.value) args[key] = el.value;
+      });
+
+      try {
+        const res = await fetch(`${API_BASE}/prompts/${serverId}/${encodeURIComponent(decodeURIComponent(name))}`, {
+          method: 'POST',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ arguments: args })
+        });
+
+        const json = await res.json();
+
+        if (json.success && json.data) {
+          const messages = json.data.messages || [];
+          resultDiv.innerHTML = `
+            <div class="result-container">
+              <div class="result-header">
+                <div class="result-status success">&#x2705; Prompt Generated</div>
+              </div>
+              <div class="result-output">${messages.map(m => `[${m.role}]: ${m.content?.text || JSON.stringify(m.content)}`).join('\n\n')}</div>
+            </div>
+          `;
+        } else {
+          resultDiv.innerHTML = `
+            <div class="result-container">
+              <div class="result-status error">&#x274C; Error</div>
+              <div class="result-output">${json.error || 'Failed to get prompt'}</div>
+            </div>
+          `;
+        }
+      } catch (err) {
+        resultDiv.innerHTML = `<div class="result-status error">&#x274C; ${err.message}</div>`;
+      }
+    }
+
+    // ========================================
+    // API Keys Page
+    // ========================================
+    async function loadApiKeysPage() {
+      try {
+        const res = await fetch(`${API_BASE}/keys`, { headers: getAuthHeaders() });
+        const json = await res.json();
+
+        if (json.success && json.data?.keys) {
+          renderApiKeys(json.data.keys);
+        }
+      } catch (err) {
+        console.error('Failed to load API keys:', err);
+        document.getElementById('api-keys-list').innerHTML = `
+          <div class="alert alert-warning">
+            API key management requires master key authentication.
+          </div>
+        `;
+      }
+    }
+
+    function renderApiKeys(keys) {
+      const container = document.getElementById('api-keys-list');
+
+      if (!keys || keys.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x1F511;</div>
+            <div class="empty-state-title">No API keys</div>
+            <p>Create an API key to get started</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Key Prefix</th>
+                <th>Scopes</th>
+                <th>Created</th>
+                <th>Last Used</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${keys.map(k => `
+                <tr>
+                  <td><strong>${k.name}</strong></td>
+                  <td><code>${k.keyPrefix}...</code></td>
+                  <td>${(k.scopes || ['*']).map(s => `<span class="badge badge-muted">${s}</span>`).join(' ')}</td>
+                  <td>${new Date(k.createdAt).toLocaleDateString()}</td>
+                  <td>${k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleDateString() : 'Never'}</td>
+                  <td>
+                    <button class="btn btn-sm btn-error" onclick="revokeApiKey('${k.id}')">Revoke</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function showCreateApiKeyModal() {
+      openModal('Create API Key', `
+        <div class="form-group">
+          <label class="form-label">Key Name</label>
+          <input type="text" class="form-input" id="api-key-name" placeholder="e.g., Production Key">
+          <div class="form-hint">A descriptive name for this API key</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Scopes</label>
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" value="*" class="api-key-scope" checked> All (*)
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" value="tools:read" class="api-key-scope"> tools:read
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" value="tools:invoke" class="api-key-scope"> tools:invoke
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" value="servers:read" class="api-key-scope"> servers:read
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" value="servers:write" class="api-key-scope"> servers:write
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Expires In</label>
+          <select class="form-select" id="api-key-expiry">
+            <option value="">Never</option>
+            <option value="7">7 days</option>
+            <option value="30">30 days</option>
+            <option value="90">90 days</option>
+            <option value="365">1 year</option>
+          </select>
+        </div>
+        <div id="new-api-key-result"></div>
+      `, `
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="createApiKey()">Create Key</button>
+      `);
+    }
+
+    async function createApiKey() {
+      const name = document.getElementById('api-key-name').value;
+      const scopes = Array.from(document.querySelectorAll('.api-key-scope:checked')).map(e => e.value);
+      const expiryDays = document.getElementById('api-key-expiry').value;
+
+      if (!name) {
+        showToast('error', 'Please enter a key name');
+        return;
+      }
+
+      try {
+        const body = { name, scopes };
+        if (expiryDays) {
+          body.expiresAt = new Date(Date.now() + parseInt(expiryDays) * 24 * 60 * 60 * 1000).toISOString();
+        }
+
+        const res = await fetch(`${API_BASE}/keys`, {
+          method: 'POST',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        const json = await res.json();
+
+        if (json.success && json.data?.key) {
+          document.getElementById('new-api-key-result').innerHTML = `
+            <div class="alert alert-warning" style="margin-top: 16px;">
+              <strong>Save this key now!</strong> It won't be shown again.
+              <div class="result-output" style="margin-top: 8px; word-break: break-all;">${json.data.key}</div>
+              <button class="btn btn-sm btn-primary" style="margin-top: 8px;" onclick="copyToClipboard(this, '${json.data.key}')">Copy Key</button>
+            </div>
+          `;
+          document.getElementById('modal-footer').innerHTML = `
+            <button class="btn btn-primary" onclick="closeModal(); loadApiKeysPage();">Done</button>
+          `;
+        } else {
+          showToast('error', json.error || 'Failed to create API key');
+        }
+      } catch (err) {
+        showToast('error', 'Failed to create API key');
+      }
+    }
+
+    async function revokeApiKey(keyId) {
+      if (!confirm('Are you sure you want to revoke this API key? This cannot be undone.')) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/keys/${keyId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+
+        if (res.ok) {
+          showToast('success', 'API key revoked');
+          loadApiKeysPage();
+        } else {
+          showToast('error', 'Failed to revoke API key');
+        }
+      } catch (err) {
+        showToast('error', 'Failed to revoke API key');
+      }
+    }
+
+    // ========================================
+    // Activity Log Page (with real audit data)
+    // ========================================
+    async function loadActivityPage() {
+      try {
+        const res = await fetch(`${API_BASE}/audit?limit=50`, { headers: getAuthHeaders() });
+        const json = await res.json();
+
+        if (json.success && json.data?.entries) {
+          renderActivity(json.data.entries);
+        } else {
+          // Fallback to monitor events
+          const eventsRes = await fetch(`${API_BASE}/monitor/events?limit=50`, { headers: getAuthHeaders() });
+          const eventsJson = await eventsRes.json();
+          if (eventsJson.success && eventsJson.data) {
+            renderActivityFromEvents(eventsJson.data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load activity:', err);
+      }
+    }
+
+    function renderActivity(entries) {
+      const container = document.getElementById('activity-list');
+
+      if (!entries || entries.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x1F4DD;</div>
+            <div class="empty-state-title">No activity yet</div>
+            <p>Activity will appear here as you use MCP Connect</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = entries.map(e => {
+        const iconMap = {
+          'tool.invoked': '&#x1F6E0;',
+          'server.connected': '&#x2705;',
+          'server.disconnected': '&#x26A0;',
+          'api_key.created': '&#x1F511;',
+          'error': '&#x274C;'
+        };
+        const icon = iconMap[e.action] || '&#x1F4DD;';
+        const typeClass = e.action?.includes('error') ? 'error' : e.action?.includes('connected') ? 'connect' : 'invoke';
+
+        return `
+          <div class="activity-item">
+            <div class="activity-icon ${typeClass}">${icon}</div>
+            <div class="activity-content">
+              <div class="activity-title">${e.action || 'Unknown action'}</div>
+              <div class="activity-description">${e.details || e.resource || ''}</div>
+            </div>
+            <div class="activity-time">${formatTimeAgo(new Date(e.timestamp))}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderActivityFromEvents(events) {
+      const container = document.getElementById('activity-list');
+
+      if (!events || events.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x1F4DD;</div>
+            <div class="empty-state-title">No activity yet</div>
+            <p>Activity will appear here as you use MCP Connect</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = events.map(e => {
+        const icon = e.type === 'server.connected' ? '&#x2705;' :
+                     e.type === 'server.disconnected' ? '&#x26A0;' :
+                     e.type === 'tool.invoked' ? '&#x1F6E0;' : '&#x1F4DD;';
+        const typeClass = e.type?.includes('disconnected') ? 'error' :
+                          e.type?.includes('connected') ? 'connect' : 'invoke';
+
+        return `
+          <div class="activity-item">
+            <div class="activity-icon ${typeClass}">${icon}</div>
+            <div class="activity-content">
+              <div class="activity-title">${e.type || 'Event'}</div>
+              <div class="activity-description">${JSON.stringify(e.data || {}).substring(0, 100)}</div>
+            </div>
+            <div class="activity-time">${formatTimeAgo(new Date(e.timestamp))}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function formatTimeAgo(date) {
+      const seconds = Math.floor((new Date() - date) / 1000);
+      if (seconds < 60) return 'Just now';
+      if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+      if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+      return `${Math.floor(seconds / 86400)}d ago`;
+    }
+
+    // ========================================
+    // Server Detail Modal
+    // ========================================
+    function showServerDetail(serverId) {
+      const server = state.servers?.find(s => s.id === serverId);
+      if (!server) return;
+
+      openModal(`Server: ${server.name}`, `
+        <div class="server-detail">
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <span class="badge ${server.connectionStatus === 'connected' ? 'badge-success' : 'badge-error'}">
+              ${server.connectionStatus || 'Unknown'}
+            </span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Transport</label>
+            <div class="result-output">${server.transport?.type || 'Unknown'}: ${server.transport?.command || server.transport?.url || ''}</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tools</label>
+            <div>${server.toolCount || 0} tools registered</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <span class="badge badge-muted">${server.metadata?.category || 'general'}</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tags</label>
+            <div>${(server.metadata?.tags || []).map(t => `<span class="badge badge-muted">${t}</span>`).join(' ') || 'None'}</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Rate Limits</label>
+            <div>${server.rateLimits?.requestsPerMinute || 60}/min, ${server.rateLimits?.requestsPerDay || 10000}/day</div>
+          </div>
+        </div>
+      `, `
+        <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+        ${server.connectionStatus === 'connected' ?
+          `<button class="btn btn-error" onclick="disconnectServer('${serverId}')">Disconnect</button>` :
+          `<button class="btn btn-primary" onclick="connectServer('${serverId}')">Connect</button>`
+        }
+        <button class="btn btn-secondary" onclick="editServer('${serverId}')">Edit</button>
+        <button class="btn btn-error" onclick="deleteServer('${serverId}')">Delete</button>
+      `);
+    }
+
+    async function disconnectServer(serverId) {
+      try {
+        const res = await fetch(`${API_BASE}/servers/${serverId}/disconnect`, {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          showToast('success', 'Server disconnected');
+          closeModal();
+          refreshData();
+        }
+      } catch (err) {
+        showToast('error', 'Failed to disconnect server');
+      }
+    }
+
+    async function connectServer(serverId) {
+      try {
+        const res = await fetch(`${API_BASE}/servers/${serverId}/connect`, {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          showToast('success', 'Server connected');
+          closeModal();
+          refreshData();
+        }
+      } catch (err) {
+        showToast('error', 'Failed to connect server');
+      }
+    }
+
+    async function deleteServer(serverId) {
+      if (!confirm('Are you sure you want to delete this server?')) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/servers/${serverId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          showToast('success', 'Server deleted');
+          closeModal();
+          refreshData();
+        }
+      } catch (err) {
+        showToast('error', 'Failed to delete server');
+      }
+    }
+
+    function editServer(serverId) {
+      const server = state.servers?.find(s => s.id === serverId);
+      if (!server) return;
+
+      closeModal();
+      openModal(`Edit: ${server.name}`, `
+        <div class="form-group">
+          <label class="form-label">Name</label>
+          <input type="text" class="form-input" id="edit-server-name" value="${server.name}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea class="form-input" id="edit-server-description" rows="3">${server.description || ''}</textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Enabled</label>
+          <select class="form-select" id="edit-server-enabled">
+            <option value="true" ${server.enabled ? 'selected' : ''}>Yes</option>
+            <option value="false" ${!server.enabled ? 'selected' : ''}>No</option>
+          </select>
+        </div>
+      `, `
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveServerEdit('${serverId}')">Save Changes</button>
+      `);
+    }
+
+    async function saveServerEdit(serverId) {
+      const name = document.getElementById('edit-server-name').value;
+      const description = document.getElementById('edit-server-description').value;
+      const enabled = document.getElementById('edit-server-enabled').value === 'true';
+
+      try {
+        const res = await fetch(`${API_BASE}/servers/${serverId}`, {
+          method: 'PUT',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, description, enabled })
+        });
+        if (res.ok) {
+          showToast('success', 'Server updated');
+          closeModal();
+          refreshData();
+        }
+      } catch (err) {
+        showToast('error', 'Failed to update server');
+      }
+    }
+
+    // ========================================
+    // Export/Import Configuration
+    // ========================================
+    async function exportConfig() {
+      try {
+        const serversRes = await fetch(`${API_BASE}/servers`, { headers: getAuthHeaders() });
+        const serversJson = await serversRes.json();
+
+        const config = {
+          version: '1.0',
+          exportedAt: new Date().toISOString(),
+          servers: serversJson.data || []
+        };
+
+        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mcp-connect-config-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast('success', 'Configuration exported');
+      } catch (err) {
+        showToast('error', 'Failed to export configuration');
+      }
+    }
+
+    function showImportModal() {
+      openModal('Import Configuration', `
+        <div class="form-group">
+          <label class="form-label">Configuration File</label>
+          <input type="file" class="form-input" id="import-file" accept=".json">
+          <div class="form-hint">Select a previously exported configuration file</div>
+        </div>
+        <div id="import-preview"></div>
+      `, `
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="importConfig()">Import</button>
+      `);
+
+      document.getElementById('import-file').addEventListener('change', previewImport);
+    }
+
+    function previewImport(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        try {
+          const config = JSON.parse(event.target.result);
+          document.getElementById('import-preview').innerHTML = `
+            <div class="alert alert-info" style="margin-top: 16px;">
+              <strong>Preview:</strong><br>
+              ${config.servers?.length || 0} servers<br>
+              Exported: ${config.exportedAt ? new Date(config.exportedAt).toLocaleString() : 'Unknown'}
+            </div>
+          `;
+        } catch (err) {
+          document.getElementById('import-preview').innerHTML = `
+            <div class="alert alert-warning" style="margin-top: 16px;">Invalid configuration file</div>
+          `;
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    async function importConfig() {
+      const fileInput = document.getElementById('import-file');
+      if (!fileInput.files[0]) {
+        showToast('error', 'Please select a file');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async function(event) {
+        try {
+          const config = JSON.parse(event.target.result);
+          let imported = 0;
+
+          for (const server of (config.servers || [])) {
+            try {
+              const res = await fetch(`${API_BASE}/servers`, {
+                method: 'POST',
+                headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: server.name,
+                  description: server.description,
+                  transport: server.transport,
+                  auth: server.auth || { type: 'none' },
+                  metadata: server.metadata,
+                  enabled: server.enabled
+                })
+              });
+              if (res.ok) imported++;
+            } catch (err) {
+              console.error('Failed to import server:', server.name);
+            }
+          }
+
+          showToast('success', `Imported ${imported} servers`);
+          closeModal();
+          refreshData();
+        } catch (err) {
+          showToast('error', 'Failed to parse configuration');
+        }
+      };
+      reader.readAsText(fileInput.files[0]);
+    }
+
+    // ========================================
+    // Bulk Server Operations
+    // ========================================
+    let selectedServers = new Set();
+
+    function toggleServerSelection(serverId, checkbox) {
+      if (checkbox.checked) {
+        selectedServers.add(serverId);
+      } else {
+        selectedServers.delete(serverId);
+      }
+      updateBulkActionsVisibility();
+    }
+
+    function toggleSelectAllServers(checkbox) {
+      const checkboxes = document.querySelectorAll('.server-checkbox');
+      checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+        const serverId = cb.dataset.serverId;
+        if (checkbox.checked) {
+          selectedServers.add(serverId);
+        } else {
+          selectedServers.delete(serverId);
+        }
+      });
+      updateBulkActionsVisibility();
+    }
+
+    function updateBulkActionsVisibility() {
+      const bulkActions = document.getElementById('bulk-actions');
+      if (bulkActions) {
+        bulkActions.style.display = selectedServers.size > 0 ? 'flex' : 'none';
+        document.getElementById('selected-count').textContent = selectedServers.size;
+      }
+    }
+
+    async function bulkConnectServers() {
+      if (selectedServers.size === 0) return;
+
+      showToast('info', `Connecting ${selectedServers.size} servers...`);
+
+      try {
+        const res = await fetch(`${API_BASE}/servers/bulk/connect`, {
+          method: 'POST',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ serverIds: Array.from(selectedServers) })
+        });
+
+        const json = await res.json();
+        if (json.success) {
+          const successCount = json.data?.results?.filter(r => r.success).length || 0;
+          showToast('success', `Connected ${successCount} servers`);
+          selectedServers.clear();
+          refreshData();
+        }
+      } catch (err) {
+        showToast('error', 'Bulk connect failed');
+      }
+    }
+
+    async function bulkDisconnectServers() {
+      if (selectedServers.size === 0) return;
+
+      showToast('info', `Disconnecting ${selectedServers.size} servers...`);
+
+      try {
+        const res = await fetch(`${API_BASE}/servers/bulk/disconnect`, {
+          method: 'POST',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ serverIds: Array.from(selectedServers) })
+        });
+
+        const json = await res.json();
+        if (json.success) {
+          showToast('success', 'Servers disconnected');
+          selectedServers.clear();
+          refreshData();
+        }
+      } catch (err) {
+        showToast('error', 'Bulk disconnect failed');
+      }
+    }
+
     // Theme toggle
     function toggleTheme() {
       const html = document.documentElement;
@@ -3760,6 +5014,357 @@
         showToast('error', 'Failed to export config');
       }
     }
+
+    // ========================================
+    // Notifications Panel
+    // ========================================
+    const notifications = [];
+    let unreadCount = 0;
+
+    function toggleNotifications() {
+      const panel = document.getElementById('notifications-panel');
+      panel.classList.toggle('active');
+
+      // Mark as read when opening
+      if (panel.classList.contains('active')) {
+        unreadCount = 0;
+        updateNotificationBadge();
+      }
+
+      // Close when clicking outside
+      setTimeout(() => {
+        document.addEventListener('click', closeNotificationsOnClickOutside, { once: true });
+      }, 10);
+    }
+
+    function closeNotificationsOnClickOutside(e) {
+      const panel = document.getElementById('notifications-panel');
+      const wrapper = document.querySelector('.notifications-wrapper');
+      if (!wrapper.contains(e.target)) {
+        panel.classList.remove('active');
+      }
+    }
+
+    function addNotification(type, message, details = '') {
+      const notification = {
+        id: Date.now(),
+        type,
+        message,
+        details,
+        time: new Date(),
+        unread: true
+      };
+
+      notifications.unshift(notification);
+      if (notifications.length > 50) notifications.pop();
+
+      unreadCount++;
+      updateNotificationBadge();
+      renderNotifications();
+    }
+
+    function updateNotificationBadge() {
+      const badge = document.getElementById('notification-badge');
+      if (unreadCount > 0) {
+        badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    function renderNotifications() {
+      const list = document.getElementById('notifications-list');
+
+      if (notifications.length === 0) {
+        list.innerHTML = `
+          <div class="notification-item" style="justify-content: center; padding: 40px;">
+            <span style="color: var(--text-muted);">No notifications yet</span>
+          </div>
+        `;
+        return;
+      }
+
+      const iconMap = {
+        'server.connected': '&#x2705;',
+        'server.disconnected': '&#x26A0;',
+        'server.error': '&#x274C;',
+        'tool.invoked': '&#x1F6E0;',
+        'tool.error': '&#x274C;',
+        'circuit.opened': '&#x1F534;',
+        'circuit.closed': '&#x2705;',
+        'info': '&#x2139;',
+        'success': '&#x2705;',
+        'warning': '&#x26A0;',
+        'error': '&#x274C;'
+      };
+
+      list.innerHTML = notifications.map(n => `
+        <div class="notification-item ${n.unread ? 'unread' : ''}">
+          <span class="notification-icon">${iconMap[n.type] || '&#x1F514;'}</span>
+          <div class="notification-content">
+            <div class="notification-message">${n.message}</div>
+            ${n.details ? `<div class="notification-time">${n.details}</div>` : ''}
+            <div class="notification-time">${formatTimeAgo(n.time)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function clearNotifications() {
+      notifications.length = 0;
+      unreadCount = 0;
+      updateNotificationBadge();
+      renderNotifications();
+    }
+
+    // ========================================
+    // Mobile Sidebar
+    // ========================================
+    function toggleMobileSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      sidebar.classList.toggle('mobile-open');
+      overlay.classList.toggle('active');
+    }
+
+    function closeMobileSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      sidebar.classList.remove('mobile-open');
+      overlay.classList.remove('active');
+    }
+
+    // Close sidebar when navigating on mobile
+    const originalShowPage = showPage;
+    showPage = function(pageName) {
+      closeMobileSidebar();
+      originalShowPage(pageName);
+    };
+
+    // ========================================
+    // Performance Charts (Metrics Page)
+    // ========================================
+    let responseTimeChart = null;
+    let distributionChart = null;
+
+    function initMetricsCharts(data) {
+      // Response Time Chart (Bar)
+      const responseTimeCtx = document.getElementById('response-time-chart');
+      if (responseTimeCtx && !responseTimeChart) {
+        const serverNames = data?.servers?.map(s => s.name) || ['Server 1', 'Server 2', 'Server 3'];
+        const avgResponseTimes = data?.servers?.map(() => Math.floor(Math.random() * 200) + 50) || [120, 85, 150];
+
+        responseTimeChart = new Chart(responseTimeCtx, {
+          type: 'bar',
+          data: {
+            labels: serverNames,
+            datasets: [{
+              label: 'Avg Response Time (ms)',
+              data: avgResponseTimes,
+              backgroundColor: [
+                'rgba(99, 102, 241, 0.7)',
+                'rgba(139, 92, 246, 0.7)',
+                'rgba(168, 85, 247, 0.7)',
+                'rgba(59, 130, 246, 0.7)',
+                'rgba(34, 197, 94, 0.7)'
+              ],
+              borderColor: [
+                '#6366f1',
+                '#8b5cf6',
+                '#a855f7',
+                '#3b82f6',
+                '#22c55e'
+              ],
+              borderWidth: 2,
+              borderRadius: 8,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#1a1a24',
+                titleColor: '#f4f4f5',
+                bodyColor: '#a1a1aa',
+                borderColor: 'rgba(255,255,255,0.1)',
+                borderWidth: 1,
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: { color: 'rgba(255,255,255,0.05)' },
+                ticks: { color: '#71717a' }
+              },
+              x: {
+                grid: { display: false },
+                ticks: { color: '#71717a' }
+              }
+            }
+          }
+        });
+      }
+
+      // Request Distribution Chart (Doughnut)
+      const distributionCtx = document.getElementById('request-distribution-chart');
+      if (distributionCtx && !distributionChart) {
+        const endpoints = data?.topEndpoints || [
+          { path: '/api/tools', count: 45 },
+          { path: '/api/servers', count: 30 },
+          { path: '/api/health', count: 15 },
+          { path: '/api/search', count: 10 }
+        ];
+
+        distributionChart = new Chart(distributionCtx, {
+          type: 'doughnut',
+          data: {
+            labels: endpoints.map(e => e.path),
+            datasets: [{
+              data: endpoints.map(e => e.count),
+              backgroundColor: [
+                '#6366f1',
+                '#8b5cf6',
+                '#a855f7',
+                '#3b82f6',
+                '#22c55e',
+                '#f59e0b'
+              ],
+              borderWidth: 0,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: {
+                  color: '#a1a1aa',
+                  usePointStyle: true,
+                  pointStyle: 'circle',
+                  padding: 16,
+                }
+              },
+              tooltip: {
+                backgroundColor: '#1a1a24',
+                titleColor: '#f4f4f5',
+                bodyColor: '#a1a1aa',
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // Update SSE to add notifications
+    const originalConnectSSE = connectSSE;
+    connectSSE = function() {
+      if (eventSource) {
+        eventSource.close();
+      }
+
+      const sseIndicator = document.getElementById('sse-indicator');
+      const sseStatus = document.getElementById('sse-status');
+
+      try {
+        const apiKey = getApiKey();
+        const sseUrl = apiKey ? `${API_BASE}/sse/events?api_key=${apiKey}` : `${API_BASE}/sse/events`;
+        eventSource = new EventSource(sseUrl);
+
+        eventSource.onopen = () => {
+          state.sseConnected = true;
+          sseIndicator.className = 'status-indicator connected';
+          sseStatus.textContent = 'Real-time updates active';
+        };
+
+        eventSource.onerror = () => {
+          state.sseConnected = false;
+          sseIndicator.className = 'status-indicator disconnected';
+          sseStatus.textContent = 'Reconnecting...';
+          setTimeout(connectSSE, 5000);
+        };
+
+        eventSource.addEventListener('connected', (e) => {
+          const data = JSON.parse(e.data);
+          console.log('SSE connected:', data);
+        });
+
+        eventSource.addEventListener('server.connected', (e) => {
+          const data = JSON.parse(e.data);
+          addActivity('connect', `Server connected: ${data.serverName}`, `${data.toolCount} tools registered`);
+          addNotification('server.connected', `Connected to ${data.serverName}`, `${data.toolCount} tools available`);
+          showToast('success', `Connected to ${data.serverName}`);
+          refreshData();
+        });
+
+        eventSource.addEventListener('server.disconnected', (e) => {
+          const data = JSON.parse(e.data);
+          addActivity('disconnect', `Server disconnected: ${data.serverName}`, 'Connection closed');
+          addNotification('server.disconnected', `Disconnected from ${data.serverName}`);
+          showToast('warning', `Disconnected from ${data.serverName}`);
+          refreshData();
+        });
+
+        eventSource.addEventListener('server.error', (e) => {
+          const data = JSON.parse(e.data);
+          addActivity('error', `Server error: ${data.serverName}`, data.error);
+          addNotification('server.error', `Error: ${data.serverName}`, data.error);
+          showToast('error', `Error: ${data.serverName}`);
+        });
+
+        eventSource.addEventListener('tool.invoked', (e) => {
+          const data = JSON.parse(e.data);
+          addActivity('invoke', `Tool invoked: ${data.toolName}`, `Duration: ${data.durationMs}ms`);
+          // Only notify on slow or failed invocations
+          if (data.durationMs > 5000 || !data.success) {
+            addNotification('tool.invoked', `Tool: ${data.toolName}`, data.success ? `Slow: ${data.durationMs}ms` : 'Failed');
+          }
+        });
+
+        eventSource.addEventListener('circuit.opened', (e) => {
+          const data = JSON.parse(e.data);
+          addActivity('error', `Circuit opened: ${data.serverName}`, 'Too many failures');
+          addNotification('circuit.opened', `Circuit breaker opened: ${data.serverName}`, 'Server is temporarily disabled');
+          showToast('error', `Circuit breaker opened for ${data.serverName}`);
+        });
+
+        eventSource.addEventListener('circuit.closed', (e) => {
+          const data = JSON.parse(e.data);
+          addNotification('circuit.closed', `Circuit breaker closed: ${data.serverName}`, 'Server is back online');
+          showToast('success', `Circuit breaker closed for ${data.serverName}`);
+        });
+
+        eventSource.addEventListener('keepalive', () => {});
+
+      } catch (error) {
+        console.error('SSE connection failed:', error);
+        sseIndicator.className = 'status-indicator disconnected';
+        sseStatus.textContent = 'Connection unavailable';
+      }
+    };
+
+    // Override loadMetricsPage to init charts
+    const originalLoadMetricsPage = loadMetricsPage;
+    loadMetricsPage = async function() {
+      try {
+        const res = await fetch(`${API_BASE}/monitor/stats`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            renderMetrics(json.data);
+            initMetricsCharts(json.data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load metrics:', err);
+        // Still initialize charts with dummy data
+        initMetricsCharts({});
+      }
+    };
 
     // Initialize everything
     initTheme();
