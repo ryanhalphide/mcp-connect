@@ -6,7 +6,7 @@ import { cors } from 'hono/cors';
 import { compress } from 'hono/compress';
 import { secureHeaders } from 'hono/secure-headers';
 import { requestLoggingMiddleware } from './observability/requestLogger.js';
-import { authMiddleware } from './middleware/auth.js';
+import { authMiddleware, optionalAuthMiddleware } from './middleware/auth.js';
 import { errorHandlerMiddleware, requestIdMiddleware, notFoundHandler } from './middleware/errorHandler.js';
 import { shutdownManager, shutdownMiddleware } from './core/gracefulShutdown.js';
 import { serversApi } from './api/servers.js';
@@ -72,11 +72,11 @@ app.route('/api/health', healthApi);
 // Mount API key management routes (master key required)
 app.route('/api/keys', keysApi);
 
-// Mount protected API routes (API key required)
-app.use('/api/servers/*', authMiddleware);
+// Mount servers API (optional auth for read, required for write)
+app.use('/api/servers/*', optionalAuthMiddleware);
 app.route('/api/servers', serversApi);
 
-app.use('/api/tools/*', authMiddleware);
+app.use('/api/tools/*', optionalAuthMiddleware);
 app.route('/api/tools', toolsApi);
 
 app.use('/api/resources/*', authMiddleware);
@@ -122,8 +122,8 @@ app.route('/api/templates', templatesApi);
 app.use('/api/webhooks/subscriptions/*', authMiddleware);
 app.route('/api/webhooks/subscriptions', webhookSubscriptionsApi);
 
-// Mount SSE streaming API (requires auth for events stream)
-app.use('/api/sse/events', authMiddleware);
+// Mount SSE streaming API (optional auth - allows public event streaming)
+app.use('/api/sse/events', optionalAuthMiddleware);
 app.route('/api/sse', sseApi);
 
 // Mount enterprise APIs (requires auth and permissions)
@@ -139,10 +139,8 @@ app.route('/api/usage-metrics', usageApi);
 // Mount Prometheus metrics endpoint (public - standard for metrics scraping)
 app.route('/metrics', prometheusApi);
 
-// Mount monitoring routes with optional auth (dashboard public, sensitive endpoints protected)
-app.use('/api/monitor/stats', authMiddleware);
-app.use('/api/monitor/requests', authMiddleware);
-app.use('/api/monitor/tools', authMiddleware);
+// Mount monitoring routes (public for dashboard visibility)
+app.use('/api/monitor/*', optionalAuthMiddleware);
 app.route('/api/monitor', monitorApi);
 
 // Serve static files from public directory

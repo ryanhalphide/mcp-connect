@@ -1032,6 +1032,50 @@
       border-radius: 50%;
       animation: pulse 2s infinite;
     }
+
+    /* API Key Banner */
+    .api-key-banner {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .api-key-banner.hidden {
+      display: none;
+    }
+
+    .api-key-banner-icon {
+      font-size: 20px;
+    }
+
+    .api-key-banner-text {
+      flex: 1;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .api-key-input {
+      width: 320px;
+      padding: 8px 14px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .api-key-input:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+    }
+
+    .api-key-input::placeholder {
+      color: var(--text-muted);
+    }
   </style>
 </head>
 <body>
@@ -1110,6 +1154,15 @@
 
     <!-- Main content -->
     <main class="main-content">
+      <!-- API Key Banner -->
+      <div class="api-key-banner hidden" id="api-key-banner">
+        <span class="api-key-banner-icon">&#x1F511;</span>
+        <span class="api-key-banner-text">Enter your API key to access all features</span>
+        <input type="password" class="api-key-input" id="api-key-input" placeholder="Enter API key...">
+        <button class="btn btn-primary" onclick="saveApiKey()">Connect</button>
+        <button class="btn btn-secondary" onclick="hideApiKeyBanner()">Dismiss</button>
+      </div>
+
       <header class="top-bar">
         <div class="breadcrumb">
           <span>MCP Connect</span>
@@ -1124,6 +1177,7 @@
             <span>LIVE</span>
           </div>
           <button class="btn btn-icon" onclick="refreshData()" title="Refresh">&#x21BB;</button>
+          <button class="btn btn-icon" onclick="showApiKeyBanner()" title="API Key Settings">&#x1F511;</button>
           <button class="btn btn-primary" onclick="showAddServerModal()">
             <span>+</span>
             <span>Add Server</span>
@@ -1133,7 +1187,7 @@
 
       <div class="page-content" id="page-content">
         <!-- Dashboard page -->
-        <div id="dashboard-page">
+        <div id="dashboard-page" class="page-container">
           <div class="page-header">
             <div>
               <h1 class="page-title">Dashboard</h1>
@@ -1237,6 +1291,79 @@
             </div>
           </div>
         </div>
+
+        <!-- Servers page -->
+        <div id="servers-page" class="page-container" style="display: none;">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Servers</h1>
+              <p class="page-subtitle">Manage your MCP server connections</p>
+            </div>
+            <button class="btn btn-primary" onclick="showAddServerModal()">+ Add Server</button>
+          </div>
+          <div class="servers-grid" id="servers-list">
+            <div class="empty-state">
+              <div class="spinner"></div>
+              <p style="margin-top: 12px;">Loading servers...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tools page -->
+        <div id="tools-page" class="page-container" style="display: none;">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Tools</h1>
+              <p class="page-subtitle">Browse all registered MCP tools</p>
+            </div>
+          </div>
+          <div class="filters-bar">
+            <input type="text" class="search-box" id="tools-search" placeholder="Search tools..." style="width: 300px;">
+          </div>
+          <div class="tools-grid" id="tools-list">
+            <div class="empty-state">
+              <div class="spinner"></div>
+              <p style="margin-top: 12px;">Loading tools...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity page -->
+        <div id="activity-page" class="page-container" style="display: none;">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Activity Log</h1>
+              <p class="page-subtitle">Real-time event stream</p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body no-padding">
+              <div class="activity-feed" id="activity-log" style="max-height: 600px;">
+                <div class="empty-state">
+                  <div class="empty-state-icon">&#x1F4ED;</div>
+                  <div class="empty-state-title">No activity yet</div>
+                  <p>Events will appear here in real-time</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Generic placeholder for other pages -->
+        <div id="other-page" class="page-container" style="display: none;">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title" id="other-page-title">Page</h1>
+              <p class="page-subtitle">Coming soon</p>
+            </div>
+          </div>
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x1F6A7;</div>
+            <div class="empty-state-title">Under Construction</div>
+            <p>This feature is coming soon</p>
+          </div>
+        </div>
+
       </div>
     </main>
   </div>
@@ -1258,6 +1385,52 @@
     const API_BASE = '/api';
     let eventSource = null;
 
+    // Get API key from localStorage (non-blocking)
+    function getApiKey() {
+      return localStorage.getItem('apiKey');
+    }
+
+    function getAuthHeaders() {
+      const key = getApiKey();
+      return key ? { 'Authorization': `Bearer ${key}` } : {};
+    }
+
+    function showApiKeyBanner() {
+      const banner = document.getElementById('api-key-banner');
+      const input = document.getElementById('api-key-input');
+      const existingKey = getApiKey();
+
+      // If key exists, show masked version
+      if (existingKey) {
+        input.placeholder = existingKey.substring(0, 12) + '...' + existingKey.slice(-4);
+      } else {
+        input.placeholder = 'Enter API key...';
+      }
+      input.value = '';
+      banner.classList.remove('hidden');
+    }
+
+    function hideApiKeyBanner() {
+      const banner = document.getElementById('api-key-banner');
+      banner.classList.add('hidden');
+    }
+
+    function saveApiKey() {
+      const input = document.getElementById('api-key-input');
+      const key = input.value.trim();
+      if (key) {
+        localStorage.setItem('apiKey', key);
+        hideApiKeyBanner();
+        showToast('success', 'API key saved! Refreshing data...');
+        // Reconnect SSE with new key
+        connectSSE();
+        // Refresh all data
+        refreshData();
+      } else {
+        showToast('error', 'Please enter a valid API key');
+      }
+    }
+
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
       initializeApp();
@@ -1265,6 +1438,16 @@
       initializeSSE();
       initializeCharts();
       initializeSearch();
+
+      // Show API key banner if no key stored
+      if (!getApiKey()) {
+        showApiKeyBanner();
+      }
+
+      // Handle Enter key on API key input
+      document.getElementById('api-key-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') saveApiKey();
+      });
     });
 
     async function initializeApp() {
@@ -1286,11 +1469,52 @@
 
     function showPage(pageName) {
       state.currentPage = pageName;
+
+      // Update nav active state
       document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.toggle('active', item.dataset.page === pageName);
       });
+
+      // Update breadcrumb
       document.getElementById('current-page').textContent =
         pageName.charAt(0).toUpperCase() + pageName.slice(1);
+
+      // Hide all pages
+      document.querySelectorAll('.page-container').forEach(page => {
+        page.style.display = 'none';
+      });
+
+      // Show the selected page
+      const pageMap = {
+        'dashboard': 'dashboard-page',
+        'servers': 'servers-page',
+        'tools': 'tools-page',
+        'activity': 'activity-page',
+        'templates': 'other-page',
+        'groups': 'other-page',
+        'favorites': 'other-page',
+        'metrics': 'other-page',
+        'webhooks': 'other-page'
+      };
+
+      const pageId = pageMap[pageName] || 'other-page';
+      const pageEl = document.getElementById(pageId);
+      if (pageEl) {
+        pageEl.style.display = 'block';
+
+        // Update other-page title if needed
+        if (pageId === 'other-page') {
+          document.getElementById('other-page-title').textContent =
+            pageName.charAt(0).toUpperCase() + pageName.slice(1);
+        }
+      }
+
+      // Load page-specific data
+      if (pageName === 'servers') {
+        loadServersPage();
+      } else if (pageName === 'tools') {
+        loadToolsPage();
+      }
     }
 
     // SSE Real-time updates
@@ -1308,8 +1532,10 @@
       const sseStatus = document.getElementById('sse-status');
 
       try {
-        // Public SSE status endpoint
-        eventSource = new EventSource(`${API_BASE}/sse/events`);
+        // SSE with API key authentication
+        const apiKey = getApiKey();
+        const sseUrl = apiKey ? `${API_BASE}/sse/events?api_key=${apiKey}` : `${API_BASE}/sse/events`;
+        eventSource = new EventSource(sseUrl);
 
         eventSource.onopen = () => {
           state.sseConnected = true;
@@ -1567,7 +1793,7 @@
 
     async function fetchStats() {
       try {
-        const res = await fetch(`${API_BASE}/monitor/stats`);
+        const res = await fetch(`${API_BASE}/monitor/stats`, { headers: getAuthHeaders() });
         if (res.ok) {
           const json = await res.json();
           if (json.success && json.data) {
@@ -1579,8 +1805,31 @@
         document.getElementById('stat-requests').textContent = '0';
       }
 
-      // Render placeholder servers
-      renderServers([]);
+      // Fetch and render servers
+      await fetchServers();
+    }
+
+    async function fetchServers() {
+      try {
+        const res = await fetch(`${API_BASE}/servers`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            state.servers = json.data;
+            renderServers(json.data.map(s => ({
+              name: s.name,
+              category: s.metadata?.category || 'General',
+              status: s.connectionStatus,
+              toolCount: s.toolCount || 0,
+              resourceCount: s.resourceCount || 0,
+              requests: 0
+            })));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch servers:', err);
+        renderServers([]);
+      }
     }
 
     function renderServers(servers) {
@@ -1689,6 +1938,171 @@
     // Modal functions (placeholder)
     function showAddServerModal() {
       showToast('info', 'Server creation requires API authentication');
+    }
+
+    // Page loaders
+    async function loadServersPage() {
+      const container = document.getElementById('servers-list');
+      try {
+        const res = await fetch(`${API_BASE}/servers`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            renderServersPage(json.data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load servers:', err);
+        container.innerHTML = '<div class="empty-state"><p>Failed to load servers</p></div>';
+      }
+    }
+
+    function renderServersPage(servers) {
+      const container = document.getElementById('servers-list');
+      if (!servers || servers.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x1F5A5;</div>
+            <div class="empty-state-title">No servers configured</div>
+            <p>Add a server to get started</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = servers.map(server => `
+        <div class="server-card">
+          <div class="server-card-header">
+            <div class="server-icon">${getServerIcon(server.name)}</div>
+            <div class="server-info">
+              <div class="server-name">${server.name}</div>
+              <div class="server-category">${server.metadata?.category || 'General'}</div>
+            </div>
+            <div class="server-status-badge ${server.connectionStatus || 'disconnected'}">
+              ${server.connectionStatus || 'Disconnected'}
+            </div>
+          </div>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+            ${server.description || 'No description'}
+          </p>
+          <div class="server-stats">
+            <div class="server-stat">
+              <div class="server-stat-value">${server.toolCount || 0}</div>
+              <div class="server-stat-label">Tools</div>
+            </div>
+            <div class="server-stat">
+              <div class="server-stat-value">${server.transport?.type || '-'}</div>
+              <div class="server-stat-label">Transport</div>
+            </div>
+            <div class="server-stat">
+              <div class="server-stat-value">${server.enabled ? 'Yes' : 'No'}</div>
+              <div class="server-stat-label">Enabled</div>
+            </div>
+          </div>
+          <div class="server-actions">
+            ${server.connectionStatus === 'connected'
+              ? `<button class="btn btn-secondary" onclick="disconnectServer('${server.id}')">Disconnect</button>`
+              : `<button class="btn btn-primary" onclick="connectServer('${server.id}')">Connect</button>`
+            }
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function connectServer(serverId) {
+      try {
+        const res = await fetch(`${API_BASE}/servers/${serverId}/connect`, {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          showToast('success', 'Server connected');
+          loadServersPage();
+          fetchHealth();
+        } else {
+          showToast('error', 'Failed to connect server');
+        }
+      } catch (err) {
+        showToast('error', 'Connection error');
+      }
+    }
+
+    async function disconnectServer(serverId) {
+      try {
+        const res = await fetch(`${API_BASE}/servers/${serverId}/disconnect`, {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          showToast('success', 'Server disconnected');
+          loadServersPage();
+          fetchHealth();
+        } else {
+          showToast('error', 'Failed to disconnect server');
+        }
+      } catch (err) {
+        showToast('error', 'Disconnection error');
+      }
+    }
+
+    async function loadToolsPage() {
+      const container = document.getElementById('tools-list');
+      try {
+        const res = await fetch(`${API_BASE}/tools`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            // API returns {tools: [...]} not a direct array
+            const tools = json.data.tools || json.data;
+            state.tools = tools;
+            renderToolsPage(tools);
+            initToolsSearch();
+          }
+        } else {
+          container.innerHTML = '<div class="empty-state"><p>Authentication required to view tools</p></div>';
+        }
+      } catch (err) {
+        console.error('Failed to load tools:', err);
+        container.innerHTML = '<div class="empty-state"><p>Failed to load tools</p></div>';
+      }
+    }
+
+    function renderToolsPage(tools) {
+      const container = document.getElementById('tools-list');
+      if (!tools || tools.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x1F6E0;</div>
+            <div class="empty-state-title">No tools registered</div>
+            <p>Connect a server to see available tools</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = tools.map(tool => `
+        <div class="tool-card" data-tool-name="${tool.name.toLowerCase()}">
+          <div class="tool-name">${tool.name}</div>
+          <div class="tool-description">${tool.description || 'No description'}</div>
+          <div class="tool-meta">
+            <span class="tool-tag">${tool.serverName || 'Unknown'}</span>
+            ${tool.inputSchema?.required?.length ? `<span class="tool-tag">${tool.inputSchema.required.length} params</span>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function initToolsSearch() {
+      const searchInput = document.getElementById('tools-search');
+      if (searchInput) {
+        searchInput.oninput = (e) => {
+          const query = e.target.value.toLowerCase();
+          document.querySelectorAll('.tool-card').forEach(card => {
+            const name = card.dataset.toolName || '';
+            card.style.display = name.includes(query) ? 'block' : 'none';
+          });
+        };
+      }
     }
 
     // Auto-refresh
