@@ -1339,6 +1339,34 @@
       color: var(--text-secondary);
     }
 
+    .error-help {
+      margin-top: 12px;
+      padding: 12px;
+      background: var(--warning-bg);
+      border: 1px solid var(--warning);
+      border-radius: var(--radius-sm);
+      color: var(--warning);
+      font-size: 13px;
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+    }
+
+    .alert-info {
+      background: var(--info-bg);
+      border: 1px solid var(--info);
+      color: var(--info);
+    }
+
+    .alert-warning {
+      background: var(--warning-bg);
+      border: 1px solid var(--warning);
+      color: var(--warning);
+    }
+
     /* Keyboard shortcut hints */
     .kbd {
       display: inline-block;
@@ -3075,9 +3103,23 @@
     }
 
     // Tool Invocation Modal
+    // Store current tool schema for invocation
+    let currentToolSchema = null;
+    let currentToolName = null;
+
     function showToolInvocationModal(toolName, schema) {
-      const properties = schema?.properties || {};
-      const required = schema?.required || [];
+      currentToolSchema = schema;
+      currentToolName = toolName;
+
+      // Detect if schema has nested params structure (like Docker MCP Gateway internal tools)
+      const hasNestedParams = schema?.properties?.params &&
+        schema?.required?.includes('params') &&
+        !schema?.properties?.name; // Not a tool that just happens to have a 'params' field
+
+      // Get the actual properties to render
+      let actualSchema = hasNestedParams ? schema.properties.params : schema;
+      const properties = actualSchema?.properties || {};
+      const required = actualSchema?.required || [];
 
       let formFields = Object.entries(properties).map(([key, prop]) => `
         <div class="form-group">
@@ -3088,46 +3130,73 @@
               <option value="true">true</option>
               <option value="false">false</option>
             </select>` :
-            `<input type="${prop.type === 'number' ? 'number' : 'text'}" class="form-input" id="param-${key}" placeholder="${prop.description || ''}">` }
+            prop.type === 'array' ?
+            `<textarea class="form-input" id="param-${key}" placeholder='${prop.description || "JSON array, e.g. [1, 2, 3]"}'></textarea>` :
+            prop.type === 'object' ?
+            `<textarea class="form-input" id="param-${key}" placeholder='${prop.description || "JSON object, e.g. {}"}'></textarea>` :
+            `<input type="${prop.type === 'number' || prop.type === 'integer' ? 'number' : 'text'}" class="form-input" id="param-${key}" placeholder="${prop.description || ''}">` }
           ${prop.description ? `<div class="form-hint">${prop.description}</div>` : ''}
         </div>
       `).join('');
 
       if (!formFields) formFields = '<p style="color: var(--text-muted);">This tool has no parameters</p>';
 
+      // Add warning for nested params schema
+      const nestedWarning = hasNestedParams ? `
+        <div class="alert alert-info" style="margin-bottom: 16px;">
+          <strong>Note:</strong> This tool uses a nested parameter structure.
+        </div>
+      ` : '';
+
       openModal(`Invoke: ${toolName}`, `
-        <form id="tool-invoke-form">
+        ${nestedWarning}
+        <form id="tool-invoke-form" data-nested-params="${hasNestedParams}">
           ${formFields}
         </form>
         <div id="tool-result"></div>
       `, `
         <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="invokeTool('${toolName}')">Invoke Tool</button>
+        <button class="btn btn-primary" onclick="invokeTool()">Invoke Tool</button>
       `);
     }
 
-    async function invokeTool(toolName) {
+    async function invokeTool() {
+      const toolName = currentToolName;
       const resultDiv = document.getElementById('tool-result');
       resultDiv.innerHTML = '<div class="spinner" style="margin: 20px auto;"></div>';
 
       const form = document.getElementById('tool-invoke-form');
+      const isNestedParams = form.dataset.nestedParams === 'true';
       const params = {};
 
-      form.querySelectorAll('input, select').forEach(el => {
+      form.querySelectorAll('input, select, textarea').forEach(el => {
         const key = el.id.replace('param-', '');
         let value = el.value;
         if (value === '') return;
         if (el.type === 'number') value = Number(value);
         if (value === 'true') value = true;
         if (value === 'false') value = false;
+        // Try to parse JSON for arrays and objects
+        if (el.tagName === 'TEXTAREA') {
+          try {
+            value = JSON.parse(value);
+          } catch (e) {
+            // Keep as string if not valid JSON
+          }
+        }
         params[key] = value;
       });
+
+      // Wrap params if nested structure is required
+      const requestBody = isNestedParams
+        ? { params: { params: params } }
+        : { params: params };
 
       try {
         const res = await fetch(`${API_BASE}/tools/${encodeURIComponent(toolName)}/invoke`, {
           method: 'POST',
           headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ params })
+          body: JSON.stringify(requestBody)
         });
 
         const json = await res.json();
@@ -3144,12 +3213,26 @@
             </div>
           `;
         } else {
+          // Parse error for better messaging
+          let errorMsg = json.error || 'Unknown error';
+          let helpText = '';
+
+          // Detect common error patterns
+          if (errorMsg.includes('Resource not found') || errorMsg.includes('Not Found')) {
+            helpText = '<div class="error-help">This tool requires external configuration (e.g., API keys, tokens) in the underlying MCP server. Check that the required integration is properly configured.</div>';
+          } else if (errorMsg.includes('Rate limit')) {
+            helpText = '<div class="error-help">Rate limit exceeded. Please wait before trying again.</div>';
+          } else if (errorMsg.includes('Invalid arguments') || errorMsg.includes('invalid_type')) {
+            helpText = '<div class="error-help">Check that all required parameters are provided with correct types.</div>';
+          }
+
           resultDiv.innerHTML = `
             <div class="result-container">
               <div class="result-header">
                 <div class="result-status error">&#x274C; Error</div>
               </div>
-              <div class="result-output">${escapeHtml(json.error || 'Unknown error')}</div>
+              <div class="result-output">${escapeHtml(errorMsg)}</div>
+              ${helpText}
             </div>
           `;
         }
