@@ -32,6 +32,7 @@ import { prometheusApi } from './api/prometheus.js';
 import { tenantsApi } from './api/tenants.js';
 import { rbacApi } from './api/rbac.js';
 import { usageApi } from './api/usage.js';
+import { dockerApi } from './api/docker.js';
 import { connectionPool } from './core/pool.js';
 import { toolRegistry } from './core/registry.js';
 import { resourceRegistry } from './core/resourceRegistry.js';
@@ -135,6 +136,10 @@ app.route('/api/rbac', rbacApi);
 
 app.use('/api/usage-metrics/*', authMiddleware);
 app.route('/api/usage-metrics', usageApi);
+
+// Mount Docker MCP management routes (requires auth)
+app.use('/api/docker/*', authMiddleware);
+app.route('/api/docker', dockerApi);
 
 // Mount Prometheus metrics endpoint (public - standard for metrics scraping)
 app.route('/metrics', prometheusApi);

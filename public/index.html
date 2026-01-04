@@ -353,6 +353,62 @@
       color: var(--text-primary);
     }
 
+    .btn-error {
+      background: var(--error);
+      color: white;
+    }
+
+    .btn-error:hover {
+      background: #dc2626;
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    /* Data tables */
+    .table-container {
+      overflow-x: auto;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .data-table th {
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+    }
+
+    .data-table td {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .data-table tr:hover td {
+      background: var(--bg-card);
+    }
+
+    .data-table code {
+      background: var(--bg-tertiary);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
     .btn-icon {
       width: 40px;
       height: 40px;
@@ -1569,6 +1625,14 @@
             <span>Webhooks</span>
           </div>
         </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Configuration</div>
+          <div class="nav-item" data-page="settings">
+            <span class="nav-item-icon">&#x2699;</span>
+            <span>Settings</span>
+          </div>
+        </div>
       </nav>
 
       <div class="sidebar-footer">
@@ -1932,6 +1996,102 @@
           </div>
         </div>
 
+        <!-- Settings Page -->
+        <div id="settings-page" class="page-container" style="display: none;">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Settings</h1>
+              <p class="page-subtitle">Configure MCP Connect and integrations</p>
+            </div>
+          </div>
+
+          <!-- Docker MCP Settings -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">&#x1F40B; Docker MCP Gateway</h3>
+              <span id="docker-status-badge" class="badge badge-muted">Checking...</span>
+            </div>
+            <div class="card-body">
+              <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                Configure secrets for Docker MCP Gateway integrations. These credentials enable GitHub, Firecrawl, and other providers.
+              </p>
+              <div id="docker-secrets-list">
+                <div class="spinner" style="margin: 20px auto;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add Secret Form -->
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+              <h3 class="card-title">&#x2795; Add/Update Secret</h3>
+            </div>
+            <div class="card-body">
+              <form id="add-secret-form" onsubmit="handleAddSecret(event)">
+                <div class="form-row" style="display: grid; grid-template-columns: 1fr 2fr auto; gap: 16px; align-items: end;">
+                  <div class="form-group">
+                    <label class="form-label">Secret Name</label>
+                    <select class="form-select" id="secret-name-select">
+                      <option value="">Select a secret...</option>
+                      <option value="github.personal_access_token">github.personal_access_token</option>
+                      <option value="firecrawl.api_key">firecrawl.api_key</option>
+                      <option value="linear.api_key">linear.api_key</option>
+                      <option value="notion.api_key">notion.api_key</option>
+                      <option value="neon.api_key">neon.api_key</option>
+                      <option value="custom">Custom...</option>
+                    </select>
+                    <input type="text" class="form-input" id="secret-name-custom" placeholder="Custom secret name" style="display: none; margin-top: 8px;">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Secret Value</label>
+                    <input type="password" class="form-input" id="secret-value" placeholder="Enter secret value...">
+                  </div>
+                  <button type="submit" class="btn btn-primary">Set Secret</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Instructions -->
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+              <h3 class="card-title">&#x1F4DD; Integration Setup</h3>
+            </div>
+            <div class="card-body">
+              <div class="tools-grid">
+                <div class="tool-card">
+                  <div class="tool-name">GitHub</div>
+                  <div class="tool-description">
+                    Secret: <code>github.personal_access_token</code><br>
+                    <a href="https://github.com/settings/tokens" target="_blank" style="color: var(--accent-primary);">Create token</a> with repo, read:user scopes
+                  </div>
+                </div>
+                <div class="tool-card">
+                  <div class="tool-name">Firecrawl</div>
+                  <div class="tool-description">
+                    Secret: <code>firecrawl.api_key</code><br>
+                    <a href="https://firecrawl.dev" target="_blank" style="color: var(--accent-primary);">Get API key</a> from Firecrawl dashboard
+                  </div>
+                </div>
+                <div class="tool-card">
+                  <div class="tool-name">Linear</div>
+                  <div class="tool-description">
+                    Secret: <code>linear.api_key</code><br>
+                    <a href="https://linear.app/settings/api" target="_blank" style="color: var(--accent-primary);">Create API key</a> in Linear settings
+                  </div>
+                </div>
+                <div class="tool-card">
+                  <div class="tool-name">Neon</div>
+                  <div class="tool-description">
+                    Secret: <code>neon.api_key</code><br>
+                    <a href="https://console.neon.tech/app/settings/api-keys" target="_blank" style="color: var(--accent-primary);">Create API key</a> in Neon console
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </main>
   </div>
@@ -2080,7 +2240,8 @@
         'groups': 'groups-page',
         'favorites': 'favorites-page',
         'metrics': 'metrics-page',
-        'webhooks': 'webhooks-page'
+        'webhooks': 'webhooks-page',
+        'settings': 'settings-page'
       };
 
       const pageId = pageMap[pageName] || 'dashboard-page';
@@ -2098,6 +2259,7 @@
         case 'favorites': loadFavoritesPage(); break;
         case 'metrics': loadMetricsPage(); break;
         case 'webhooks': loadWebhooksPage(); break;
+        case 'settings': loadSettingsPage(); break;
       }
     }
 
@@ -2989,6 +3151,221 @@
         }
       } catch (err) {
         showToast('error', 'Failed to create webhook');
+      }
+    }
+
+    // Settings page - Docker MCP configuration
+    async function loadSettingsPage() {
+      // Check Docker status
+      try {
+        const statusRes = await fetch(`${API_BASE}/docker/status`, { headers: getAuthHeaders() });
+        const statusJson = await statusRes.json();
+        const badge = document.getElementById('docker-status-badge');
+
+        if (statusJson.success && statusJson.data?.available) {
+          badge.textContent = `v${statusJson.data.version || 'unknown'}`;
+          badge.className = 'badge badge-success';
+          loadDockerSecrets();
+        } else {
+          badge.textContent = 'Not Available';
+          badge.className = 'badge badge-error';
+          document.getElementById('docker-secrets-list').innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">&#x1F40B;</div>
+              <div class="empty-state-title">Docker MCP not available</div>
+              <p>Install Docker Desktop with MCP support to configure integrations</p>
+            </div>
+          `;
+        }
+      } catch (err) {
+        console.error('Failed to check Docker status:', err);
+        document.getElementById('docker-status-badge').textContent = 'Error';
+        document.getElementById('docker-status-badge').className = 'badge badge-error';
+      }
+
+      // Setup secret name select handler
+      document.getElementById('secret-name-select')?.addEventListener('change', (e) => {
+        const customInput = document.getElementById('secret-name-custom');
+        if (e.target.value === 'custom') {
+          customInput.style.display = 'block';
+          customInput.focus();
+        } else {
+          customInput.style.display = 'none';
+        }
+      });
+    }
+
+    async function loadDockerSecrets() {
+      try {
+        const res = await fetch(`${API_BASE}/docker/secrets`, { headers: getAuthHeaders() });
+        const json = await res.json();
+
+        if (json.success && json.data?.secrets) {
+          renderDockerSecrets(json.data.secrets);
+        }
+      } catch (err) {
+        console.error('Failed to load Docker secrets:', err);
+      }
+    }
+
+    function renderDockerSecrets(secrets) {
+      const container = document.getElementById('docker-secrets-list');
+
+      if (!secrets || secrets.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#x1F511;</div>
+            <div class="empty-state-title">No secrets configured</div>
+            <p>Add secrets to enable Docker MCP integrations</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Secret Name</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${secrets.map(s => `
+                <tr>
+                  <td><code>${s.name}</code></td>
+                  <td>
+                    <span class="badge ${s.configured ? 'badge-success' : 'badge-muted'}">
+                      ${s.configured ? 'Configured' : 'Not Set'}
+                    </span>
+                  </td>
+                  <td>
+                    <button class="btn btn-sm btn-secondary" onclick="promptUpdateSecret('${s.name}')">Update</button>
+                    ${s.configured ? `<button class="btn btn-sm btn-error" onclick="deleteDockerSecret('${s.name}')">Remove</button>` : ''}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function promptUpdateSecret(name) {
+      document.getElementById('secret-name-select').value = name;
+      document.getElementById('secret-name-custom').style.display = 'none';
+      document.getElementById('secret-value').focus();
+    }
+
+    async function handleAddSecret(event) {
+      event.preventDefault();
+
+      const select = document.getElementById('secret-name-select');
+      const customName = document.getElementById('secret-name-custom');
+      const valueInput = document.getElementById('secret-value');
+
+      const name = select.value === 'custom' ? customName.value : select.value;
+      const value = valueInput.value;
+
+      if (!name) {
+        showToast('error', 'Please select or enter a secret name');
+        return;
+      }
+
+      if (!value) {
+        showToast('error', 'Please enter a secret value');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/docker/secrets`, {
+          method: 'POST',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, value })
+        });
+
+        const json = await res.json();
+
+        if (json.success) {
+          showToast('success', `Secret '${name}' configured. Restart Docker MCP Gateway for changes to take effect.`);
+          valueInput.value = '';
+          select.value = '';
+          customName.value = '';
+          customName.style.display = 'none';
+          loadDockerSecrets();
+
+          // Offer to reconnect Docker MCP Gateway
+          if (confirm('Would you like to reconnect Docker MCP Gateway now to apply the changes?')) {
+            await reconnectDockerGateway();
+          }
+        } else {
+          showToast('error', json.error || 'Failed to set secret');
+        }
+      } catch (err) {
+        showToast('error', 'Failed to set secret');
+      }
+    }
+
+    async function deleteDockerSecret(name) {
+      if (!confirm(`Are you sure you want to remove the secret '${name}'?`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/docker/secrets/${encodeURIComponent(name)}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+
+        const json = await res.json();
+
+        if (json.success) {
+          showToast('success', `Secret '${name}' removed`);
+          loadDockerSecrets();
+        } else {
+          showToast('error', json.error || 'Failed to remove secret');
+        }
+      } catch (err) {
+        showToast('error', 'Failed to remove secret');
+      }
+    }
+
+    async function reconnectDockerGateway() {
+      // Find Docker MCP Gateway server
+      try {
+        const serversRes = await fetch(`${API_BASE}/servers`, { headers: getAuthHeaders() });
+        const serversJson = await serversRes.json();
+
+        if (serversJson.success && serversJson.data) {
+          const dockerServer = serversJson.data.find(s => s.name === 'docker-mcp-gateway');
+          if (dockerServer) {
+            showToast('info', 'Reconnecting Docker MCP Gateway...');
+
+            // Disconnect
+            await fetch(`${API_BASE}/servers/${dockerServer.id}/disconnect`, {
+              method: 'POST',
+              headers: getAuthHeaders()
+            });
+
+            // Reconnect
+            const connectRes = await fetch(`${API_BASE}/servers/${dockerServer.id}/connect`, {
+              method: 'POST',
+              headers: getAuthHeaders()
+            });
+
+            const connectJson = await connectRes.json();
+            if (connectJson.success) {
+              showToast('success', `Docker MCP Gateway reconnected with ${connectJson.data.tools?.length || 0} tools`);
+              refreshData();
+            } else {
+              showToast('error', 'Failed to reconnect Docker MCP Gateway');
+            }
+          }
+        }
+      } catch (err) {
+        showToast('error', 'Failed to reconnect Docker MCP Gateway');
       }
     }
 
