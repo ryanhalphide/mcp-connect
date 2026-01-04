@@ -6,6 +6,32 @@ A centralized hub that aggregates multiple MCP (Model Context Protocol) servers 
 
 ![Dashboard](https://img.shields.io/badge/Dashboard-Live-brightgreen) ![Servers](https://img.shields.io/badge/Servers-7-blue) ![Tools](https://img.shields.io/badge/Tools-157-purple)
 
+## Screenshots
+
+### Dashboard
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Real-time Notifications
+![Notifications](docs/screenshots/notifications.png)
+
+### Server Management
+![Servers](docs/screenshots/servers.png)
+
+### Performance Metrics
+![Metrics](docs/screenshots/metrics.png)
+
+### Command Palette (Ctrl+K)
+![Command Palette](docs/screenshots/command-palette.png)
+
+### Docker MCP Gateway Settings
+![Settings](docs/screenshots/settings.png)
+
+### Mobile Responsive
+<p float="left">
+  <img src="docs/screenshots/mobile-dashboard.png" width="200" />
+  <img src="docs/screenshots/mobile-menu.png" width="200" />
+</p>
+
 ## Features
 
 ### Core Capabilities
