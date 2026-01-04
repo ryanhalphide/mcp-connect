@@ -5,6 +5,7 @@ import { serverDatabase } from '../storage/db.js';
 import { connectionPool } from '../core/pool.js';
 import { toolRegistry } from '../core/registry.js';
 import { createChildLogger } from '../observability/logger.js';
+import { appEvents } from '../core/events.js';
 
 const logger = createChildLogger({ module: 'api-servers' });
 
@@ -639,6 +640,9 @@ serversApi.post('/:id/connect', async (c) => {
       'Server connected via API'
     );
 
+    // Emit SSE event for real-time notifications
+    appEvents.emitServerConnected(id, server.name, tools.length);
+
     return c.json(apiResponse({
       connected: true,
       status: connectionPool.getConnectionStatus(id),
@@ -648,6 +652,8 @@ serversApi.post('/:id/connect', async (c) => {
     }));
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Connection failed';
+    // Emit error event
+    appEvents.emitServerError(id, server?.name || 'Unknown', message);
     c.status(500);
     return c.json(errorResponse(message));
   }
@@ -656,6 +662,8 @@ serversApi.post('/:id/connect', async (c) => {
 // POST /servers/:id/disconnect - Disconnect from server
 serversApi.post('/:id/disconnect', async (c) => {
   const id = c.req.param('id');
+  const server = serverDatabase.getServer(id);
+  const serverName = server?.name || 'Unknown';
 
   await connectionPool.disconnect(id);
   toolRegistry.unregisterServer(id);
@@ -670,6 +678,9 @@ serversApi.post('/:id/disconnect', async (c) => {
     { serverId: id, unregisteredResources, unregisteredPrompts },
     'Server disconnected via API'
   );
+
+  // Emit SSE event for real-time notifications
+  appEvents.emitServerDisconnected(id, serverName);
 
   return c.json(apiResponse({
     disconnected: true,
