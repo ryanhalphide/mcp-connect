@@ -1076,6 +1076,87 @@
     .api-key-input::placeholder {
       color: var(--text-muted);
     }
+
+    /* Filter chips */
+    .filters-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .filter-chip {
+      padding: 8px 16px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .filter-chip:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .filter-chip.active {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      color: white;
+    }
+
+    /* Tools grid for templates */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .tool-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tool-card:hover {
+      border-color: var(--accent-primary);
+      transform: translateY(-2px);
+    }
+
+    .tool-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .tool-description {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .tool-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tool-tag {
+      padding: 4px 10px;
+      background: var(--bg-tertiary);
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
   </style>
 </head>
 <body>
@@ -1349,18 +1430,158 @@
           </div>
         </div>
 
-        <!-- Generic placeholder for other pages -->
-        <div id="other-page" class="page-container" style="display: none;">
+        <!-- Templates page -->
+        <div id="templates-page" class="page-container" style="display: none;">
           <div class="page-header">
             <div>
-              <h1 class="page-title" id="other-page-title">Page</h1>
-              <p class="page-subtitle">Coming soon</p>
+              <h1 class="page-title">Templates</h1>
+              <p class="page-subtitle">Pre-configured MCP server templates ready to deploy</p>
             </div>
           </div>
-          <div class="empty-state">
-            <div class="empty-state-icon">&#x1F6A7;</div>
-            <div class="empty-state-title">Under Construction</div>
-            <p>This feature is coming soon</p>
+          <div class="filters-bar">
+            <button class="filter-chip active" data-category="all" onclick="filterTemplates('all')">All</button>
+            <button class="filter-chip" data-category="storage" onclick="filterTemplates('storage')">Storage</button>
+            <button class="filter-chip" data-category="database" onclick="filterTemplates('database')">Database</button>
+            <button class="filter-chip" data-category="development" onclick="filterTemplates('development')">Development</button>
+            <button class="filter-chip" data-category="communication" onclick="filterTemplates('communication')">Communication</button>
+            <button class="filter-chip" data-category="ai" onclick="filterTemplates('ai')">AI</button>
+          </div>
+          <div class="tools-grid" id="templates-list">
+            <div class="empty-state"><div class="spinner"></div><p style="margin-top: 12px;">Loading templates...</p></div>
+          </div>
+        </div>
+
+        <!-- Groups page -->
+        <div id="groups-page" class="page-container" style="display: none;">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Groups</h1>
+              <p class="page-subtitle">Organize servers into logical groups</p>
+            </div>
+            <button class="btn btn-primary" onclick="showCreateGroupModal()">+ Create Group</button>
+          </div>
+          <div class="servers-grid" id="groups-list">
+            <div class="empty-state">
+              <div class="empty-state-icon">&#x1F4C1;</div>
+              <div class="empty-state-title">No groups yet</div>
+              <p>Create groups to organize your servers</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Favorites page -->
+        <div id="favorites-page" class="page-container" style="display: none;">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Favorites</h1>
+              <p class="page-subtitle">Quick access to your favorite tools</p>
+            </div>
+          </div>
+          <div class="tools-grid" id="favorites-list">
+            <div class="empty-state">
+              <div class="empty-state-icon">&#x2B50;</div>
+              <div class="empty-state-title">No favorites yet</div>
+              <p>Star tools from the Tools page to add them here</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metrics page -->
+        <div id="metrics-page" class="page-container" style="display: none;">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Metrics</h1>
+              <p class="page-subtitle">System performance and usage statistics</p>
+            </div>
+            <button class="btn btn-secondary" onclick="loadMetricsPage()">&#x21BB; Refresh</button>
+          </div>
+          <div class="stats-grid" id="metrics-stats">
+            <div class="stat-card">
+              <div class="stat-card-header"><div class="stat-card-icon requests">&#x1F4CA;</div></div>
+              <div class="stat-card-value" id="metric-total-requests">-</div>
+              <div class="stat-card-label">Total Requests</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-header"><div class="stat-card-icon servers">&#x2705;</div></div>
+              <div class="stat-card-value" id="metric-success-rate">-</div>
+              <div class="stat-card-label">Success Rate</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-header"><div class="stat-card-icon tools">&#x1F5A5;</div></div>
+              <div class="stat-card-value" id="metric-active-servers">-</div>
+              <div class="stat-card-label">Active Servers</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-header"><div class="stat-card-icon uptime">&#x1F6E0;</div></div>
+              <div class="stat-card-value" id="metric-total-tools">-</div>
+              <div class="stat-card-label">Total Tools</div>
+            </div>
+          </div>
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-header"><h3 class="card-title">&#x1F4C8; Top Endpoints</h3></div>
+            <div class="card-body no-padding">
+              <div id="top-endpoints-list" style="padding: 0;"></div>
+            </div>
+          </div>
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-header"><h3 class="card-title">&#x1F5A5; Server Status</h3></div>
+            <div class="card-body">
+              <div class="servers-grid" id="metrics-servers-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Webhooks page -->
+        <div id="webhooks-page" class="page-container" style="display: none;">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Webhooks</h1>
+              <p class="page-subtitle">Subscribe to real-time events via webhooks</p>
+            </div>
+            <button class="btn btn-primary" onclick="showCreateWebhookModal()">+ Add Webhook</button>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3 class="card-title">&#x1F4E1; Available Events</h3></div>
+            <div class="card-body">
+              <div class="tools-grid">
+                <div class="tool-card">
+                  <div class="tool-name">server.connected</div>
+                  <div class="tool-description">Triggered when a server connects</div>
+                </div>
+                <div class="tool-card">
+                  <div class="tool-name">server.disconnected</div>
+                  <div class="tool-description">Triggered when a server disconnects</div>
+                </div>
+                <div class="tool-card">
+                  <div class="tool-name">server.error</div>
+                  <div class="tool-description">Triggered on server errors</div>
+                </div>
+                <div class="tool-card">
+                  <div class="tool-name">tool.invoked</div>
+                  <div class="tool-description">Triggered when a tool is invoked</div>
+                </div>
+                <div class="tool-card">
+                  <div class="tool-name">tool.error</div>
+                  <div class="tool-description">Triggered on tool invocation errors</div>
+                </div>
+                <div class="tool-card">
+                  <div class="tool-name">circuit.opened</div>
+                  <div class="tool-description">Triggered when circuit breaker opens</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-header"><h3 class="card-title">&#x1F517; Subscriptions</h3></div>
+            <div class="card-body">
+              <div id="webhooks-list">
+                <div class="empty-state">
+                  <div class="empty-state-icon">&#x1F517;</div>
+                  <div class="empty-state-title">No webhooks configured</div>
+                  <p>Add a webhook to receive real-time event notifications</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1490,30 +1711,28 @@
         'servers': 'servers-page',
         'tools': 'tools-page',
         'activity': 'activity-page',
-        'templates': 'other-page',
-        'groups': 'other-page',
-        'favorites': 'other-page',
-        'metrics': 'other-page',
-        'webhooks': 'other-page'
+        'templates': 'templates-page',
+        'groups': 'groups-page',
+        'favorites': 'favorites-page',
+        'metrics': 'metrics-page',
+        'webhooks': 'webhooks-page'
       };
 
-      const pageId = pageMap[pageName] || 'other-page';
+      const pageId = pageMap[pageName] || 'dashboard-page';
       const pageEl = document.getElementById(pageId);
       if (pageEl) {
         pageEl.style.display = 'block';
-
-        // Update other-page title if needed
-        if (pageId === 'other-page') {
-          document.getElementById('other-page-title').textContent =
-            pageName.charAt(0).toUpperCase() + pageName.slice(1);
-        }
       }
 
       // Load page-specific data
-      if (pageName === 'servers') {
-        loadServersPage();
-      } else if (pageName === 'tools') {
-        loadToolsPage();
+      switch (pageName) {
+        case 'servers': loadServersPage(); break;
+        case 'tools': loadToolsPage(); break;
+        case 'templates': loadTemplatesPage(); break;
+        case 'groups': loadGroupsPage(); break;
+        case 'favorites': loadFavoritesPage(); break;
+        case 'metrics': loadMetricsPage(); break;
+        case 'webhooks': loadWebhooksPage(); break;
       }
     }
 
@@ -2103,6 +2322,247 @@
           });
         };
       }
+    }
+
+    // Templates page
+    let allTemplates = [];
+    async function loadTemplatesPage() {
+      const container = document.getElementById('templates-list');
+      try {
+        const res = await fetch(`${API_BASE}/templates`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            allTemplates = json.data.templates || [];
+            renderTemplates(allTemplates);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load templates:', err);
+        container.innerHTML = '<div class="empty-state"><p>Failed to load templates</p></div>';
+      }
+    }
+
+    function renderTemplates(templates) {
+      const container = document.getElementById('templates-list');
+      if (!templates || templates.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#x1F4CB;</div><div class="empty-state-title">No templates available</div></div>';
+        return;
+      }
+
+      const iconMap = {
+        'folder': '&#x1F4C1;', 'database': '&#x1F4BE;', 'github': '&#x1F419;',
+        'message-square': '&#x1F4AC;', 'cloud': '&#x2601;', 'search': '&#x1F50D;',
+        'globe': '&#x1F310;', 'monitor': '&#x1F5A5;', 'image': '&#x1F5BC;',
+        'brain': '&#x1F9E0;', 'check-square': '&#x2705;', 'file-text': '&#x1F4C4;',
+        'message-circle': '&#x1F4AC;', 'alert-circle': '&#x26A0;', 'git-branch': '&#x1F500;',
+        'clock': '&#x1F552;', 'box': '&#x1F4E6;', 'server': '&#x1F5A5;', 'table': '&#x1F4CA;',
+        'phone': '&#x1F4DE;', 'mail': '&#x1F4E7;', 'credit-card': '&#x1F4B3;', 'alert-triangle': '&#x26A0;'
+      };
+
+      container.innerHTML = templates.map(t => `
+        <div class="tool-card" data-category="${t.category}" onclick="deployTemplate('${t.id}')">
+          <div class="tool-name">${iconMap[t.icon] || '&#x1F4E6;'} ${t.name}</div>
+          <div class="tool-description">${t.description || 'No description'}</div>
+          <div class="tool-meta">
+            <span class="tool-tag">${t.category}</span>
+            ${t.isBuiltIn ? '<span class="tool-tag">Built-in</span>' : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterTemplates(category) {
+      document.querySelectorAll('.filter-chip[data-category]').forEach(c =>
+        c.classList.toggle('active', c.dataset.category === category));
+
+      if (category === 'all') {
+        renderTemplates(allTemplates);
+      } else {
+        renderTemplates(allTemplates.filter(t => t.category === category));
+      }
+    }
+
+    function deployTemplate(templateId) {
+      showToast('info', 'Template deployment coming soon! Use API to deploy.');
+    }
+
+    // Groups page
+    async function loadGroupsPage() {
+      const container = document.getElementById('groups-list');
+      try {
+        const res = await fetch(`${API_BASE}/groups`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data && json.data.length > 0) {
+            renderGroups(json.data);
+          } else {
+            container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#x1F4C1;</div><div class="empty-state-title">No groups yet</div><p>Create groups to organize your servers</p></div>';
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load groups:', err);
+      }
+    }
+
+    function renderGroups(groups) {
+      const container = document.getElementById('groups-list');
+      container.innerHTML = groups.map(g => `
+        <div class="server-card">
+          <div class="server-card-header">
+            <div class="server-icon">&#x1F4C1;</div>
+            <div class="server-info">
+              <div class="server-name">${g.name}</div>
+              <div class="server-category">${g.description || 'No description'}</div>
+            </div>
+          </div>
+          <div class="server-stats">
+            <div class="server-stat">
+              <div class="server-stat-value">${g.serverCount || 0}</div>
+              <div class="server-stat-label">Servers</div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function showCreateGroupModal() {
+      showToast('info', 'Group creation available via API');
+    }
+
+    // Favorites page
+    async function loadFavoritesPage() {
+      const container = document.getElementById('favorites-list');
+      try {
+        const res = await fetch(`${API_BASE}/favorites`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data?.favorites?.length > 0) {
+            renderFavorites(json.data.favorites);
+          } else {
+            container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#x2B50;</div><div class="empty-state-title">No favorites yet</div><p>Star tools from the Tools page to add them here</p></div>';
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load favorites:', err);
+      }
+    }
+
+    function renderFavorites(favorites) {
+      const container = document.getElementById('favorites-list');
+      container.innerHTML = favorites.map(f => `
+        <div class="tool-card">
+          <div class="tool-name">&#x2B50; ${f.toolName}</div>
+          <div class="tool-description">${f.description || 'No description'}</div>
+          <div class="tool-meta">
+            <span class="tool-tag">${f.serverName || 'Unknown'}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Metrics page
+    async function loadMetricsPage() {
+      try {
+        const res = await fetch(`${API_BASE}/monitor/stats`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            renderMetrics(json.data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load metrics:', err);
+      }
+    }
+
+    function renderMetrics(data) {
+      // Calculate totals
+      const totalRequests = Object.values(data.endpoints?.byPath || {}).reduce((a, b) => a + b, 0);
+      const successCount = data.endpoints?.byStatus?.['200'] || 0;
+      const successRate = totalRequests > 0 ? Math.round((successCount / totalRequests) * 100) : 0;
+      const activeServers = data.servers?.filter(s => s.status === 'connected').length || 0;
+      const totalTools = data.servers?.reduce((a, s) => a + (s.toolCount || 0), 0) || 0;
+
+      document.getElementById('metric-total-requests').textContent = totalRequests;
+      document.getElementById('metric-success-rate').textContent = successRate + '%';
+      document.getElementById('metric-active-servers').textContent = activeServers;
+      document.getElementById('metric-total-tools').textContent = totalTools;
+
+      // Top endpoints
+      const endpointsList = document.getElementById('top-endpoints-list');
+      if (data.topEndpoints?.length > 0) {
+        endpointsList.innerHTML = data.topEndpoints.map(e => `
+          <div class="activity-item">
+            <div class="activity-content">
+              <div class="activity-title" style="font-family: monospace;">${e.path}</div>
+            </div>
+            <div class="activity-time">${e.count} requests</div>
+          </div>
+        `).join('');
+      } else {
+        endpointsList.innerHTML = '<div class="empty-state"><p>No endpoint data yet</p></div>';
+      }
+
+      // Server status
+      const serversContainer = document.getElementById('metrics-servers-list');
+      if (data.servers?.length > 0) {
+        serversContainer.innerHTML = data.servers.map(s => `
+          <div class="server-card">
+            <div class="server-card-header">
+              <div class="server-icon">${getServerIcon(s.name)}</div>
+              <div class="server-info">
+                <div class="server-name">${s.name}</div>
+                <div class="server-category">${s.category || 'General'}</div>
+              </div>
+              <div class="server-status-badge ${s.status}">${s.status}</div>
+            </div>
+            <div class="server-stats">
+              <div class="server-stat">
+                <div class="server-stat-value">${s.toolCount || 0}</div>
+                <div class="server-stat-label">Tools</div>
+              </div>
+              <div class="server-stat">
+                <div class="server-stat-value">${s.rateLimit?.requestsPerMinute || '-'}</div>
+                <div class="server-stat-label">Rate/min</div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Webhooks page
+    async function loadWebhooksPage() {
+      try {
+        const res = await fetch(`${API_BASE}/webhooks/subscriptions`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data?.subscriptions?.length > 0) {
+            renderWebhooks(json.data.subscriptions);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load webhooks:', err);
+      }
+    }
+
+    function renderWebhooks(webhooks) {
+      const container = document.getElementById('webhooks-list');
+      container.innerHTML = webhooks.map(w => `
+        <div class="activity-item">
+          <div class="activity-icon connect">&#x1F517;</div>
+          <div class="activity-content">
+            <div class="activity-title">${w.url}</div>
+            <div class="activity-description">Events: ${w.events?.join(', ') || 'All'}</div>
+          </div>
+          <div class="activity-time">${w.active ? 'Active' : 'Inactive'}</div>
+        </div>
+      `).join('');
+    }
+
+    function showCreateWebhookModal() {
+      showToast('info', 'Webhook creation available via API');
     }
 
     // Auto-refresh
