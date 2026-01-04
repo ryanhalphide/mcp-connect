@@ -39,6 +39,22 @@
       --transition: all 0.2s ease;
     }
 
+    /* Light theme */
+    [data-theme="light"] {
+      --bg-primary: #f8fafc;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #f1f5f9;
+      --bg-card: rgba(0,0,0,0.02);
+      --border-color: rgba(0,0,0,0.08);
+      --border-hover: rgba(0,0,0,0.15);
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+      --shadow-lg: 0 8px 30px rgba(0,0,0,0.15);
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -1157,6 +1173,308 @@
       font-weight: 500;
       color: var(--text-secondary);
     }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-xl);
+      width: 90%;
+      max-width: 600px;
+      max-height: 85vh;
+      overflow: hidden;
+      transform: scale(0.95) translateY(20px);
+      transition: transform 0.2s ease;
+    }
+
+    .modal-overlay.active .modal {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-close:hover {
+      background: var(--error-bg);
+      color: var(--error);
+    }
+
+    .modal-body {
+      padding: 24px;
+      overflow-y: auto;
+      max-height: calc(85vh - 140px);
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    /* Form elements */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.2s ease;
+    }
+
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+    }
+
+    .form-textarea {
+      min-height: 100px;
+      resize: vertical;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .form-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* Tool invocation result */
+    .result-container {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .result-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .result-status.success { color: var(--success); }
+    .result-status.error { color: var(--error); }
+
+    .result-output {
+      background: var(--bg-primary);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 300px;
+      overflow-y: auto;
+      color: var(--text-secondary);
+    }
+
+    /* Keyboard shortcut hints */
+    .kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Command palette */
+    .command-palette {
+      position: fixed;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 560px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      z-index: 1001;
+      display: none;
+    }
+
+    .command-palette.active {
+      display: block;
+    }
+
+    .command-input {
+      width: 100%;
+      padding: 16px 20px;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-primary);
+      font-size: 16px;
+      font-family: inherit;
+    }
+
+    .command-input:focus {
+      outline: none;
+    }
+
+    .command-results {
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .command-item {
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: background 0.1s ease;
+    }
+
+    .command-item:hover, .command-item.selected {
+      background: var(--bg-tertiary);
+    }
+
+    .command-item-icon {
+      font-size: 18px;
+    }
+
+    .command-item-text {
+      flex: 1;
+    }
+
+    .command-item-title {
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    .command-item-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Copy button */
+    .copy-btn {
+      padding: 4px 8px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .copy-btn:hover {
+      background: var(--accent-primary);
+      color: white;
+      border-color: var(--accent-primary);
+    }
+
+    .copy-btn.copied {
+      background: var(--success);
+      color: white;
+      border-color: var(--success);
+    }
+
+    /* Theme toggle */
+    .theme-toggle {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.2s ease;
+    }
+
+    .theme-toggle:hover {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main-content { margin-left: 0; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .servers-grid { grid-template-columns: 1fr; }
+      .tools-grid { grid-template-columns: 1fr; }
+      .page-header { flex-direction: column; gap: 16px; align-items: flex-start; }
+      .top-bar { padding: 12px 16px; }
+      .page-content { padding: 16px; }
+    }
   </style>
 </head>
 <body>
@@ -1259,6 +1577,7 @@
           </div>
           <button class="btn btn-icon" onclick="refreshData()" title="Refresh">&#x21BB;</button>
           <button class="btn btn-icon" onclick="showApiKeyBanner()" title="API Key Settings">&#x1F511;</button>
+          <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme" id="theme-toggle">&#x1F319;</button>
           <button class="btn btn-primary" onclick="showAddServerModal()">
             <span>+</span>
             <span>Add Server</span>
@@ -1591,6 +1910,24 @@
 
   <!-- Toast container -->
   <div class="toast-container" id="toast-container"></div>
+
+  <!-- Modal overlay -->
+  <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+    <div class="modal" id="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-title">Modal Title</h2>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer" id="modal-footer"></div>
+    </div>
+  </div>
+
+  <!-- Command palette -->
+  <div class="command-palette" id="command-palette">
+    <input type="text" class="command-input" id="command-input" placeholder="Type a command or search...">
+    <div class="command-results" id="command-results"></div>
+  </div>
 
   <script>
     // Global state
@@ -2300,12 +2637,13 @@
       }
 
       container.innerHTML = tools.map(tool => `
-        <div class="tool-card" data-tool-name="${tool.name.toLowerCase()}">
+        <div class="tool-card" data-tool-name="${tool.name.toLowerCase()}" data-tool-schema='${JSON.stringify(tool.inputSchema || {}).replace(/'/g, "&#39;")}' onclick="showToolInvocationModal('${tool.name}', JSON.parse(this.dataset.toolSchema))">
           <div class="tool-name">${tool.name}</div>
           <div class="tool-description">${tool.description || 'No description'}</div>
           <div class="tool-meta">
             <span class="tool-tag">${tool.serverName || 'Unknown'}</span>
             ${tool.inputSchema?.required?.length ? `<span class="tool-tag">${tool.inputSchema.required.length} params</span>` : ''}
+            <span class="tool-tag" style="background: var(--accent-primary); color: white;">&#x25B6; Run</span>
           </div>
         </div>
       `).join('');
@@ -2562,8 +2900,410 @@
     }
 
     function showCreateWebhookModal() {
-      showToast('info', 'Webhook creation available via API');
+      openModal('Create Webhook', `
+        <div class="form-group">
+          <label class="form-label">Webhook URL</label>
+          <input type="url" class="form-input" id="webhook-url" placeholder="https://your-server.com/webhook">
+          <div class="form-hint">The URL that will receive event notifications</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Events</label>
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" value="server.connected" class="webhook-event"> server.connected
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" value="server.disconnected" class="webhook-event"> server.disconnected
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" value="tool.invoked" class="webhook-event"> tool.invoked
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" value="tool.error" class="webhook-event"> tool.error
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Secret (optional)</label>
+          <input type="text" class="form-input" id="webhook-secret" placeholder="webhook-secret-key">
+          <div class="form-hint">Used to sign webhook payloads for verification</div>
+        </div>
+      `, `
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="createWebhook()">Create Webhook</button>
+      `);
     }
+
+    async function createWebhook() {
+      const url = document.getElementById('webhook-url').value;
+      const secret = document.getElementById('webhook-secret').value;
+      const events = Array.from(document.querySelectorAll('.webhook-event:checked')).map(e => e.value);
+
+      if (!url) {
+        showToast('error', 'Please enter a webhook URL');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/webhooks/subscriptions`, {
+          method: 'POST',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, events, secret: secret || undefined })
+        });
+
+        if (res.ok) {
+          showToast('success', 'Webhook created successfully');
+          closeModal();
+          loadWebhooksPage();
+        } else {
+          const json = await res.json();
+          showToast('error', json.error || 'Failed to create webhook');
+        }
+      } catch (err) {
+        showToast('error', 'Failed to create webhook');
+      }
+    }
+
+    // Theme toggle
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme');
+      const next = current === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      document.getElementById('theme-toggle').innerHTML = next === 'light' ? '&#x2600;' : '&#x1F319;';
+    }
+
+    function initTheme() {
+      const saved = localStorage.getItem('theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', saved);
+      document.getElementById('theme-toggle').innerHTML = saved === 'light' ? '&#x2600;' : '&#x1F319;';
+    }
+
+    // Modal functions
+    function openModal(title, bodyHtml, footerHtml = '') {
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-body').innerHTML = bodyHtml;
+      document.getElementById('modal-footer').innerHTML = footerHtml;
+      document.getElementById('modal-overlay').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal(event) {
+      if (event && event.target !== event.currentTarget) return;
+      document.getElementById('modal-overlay').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    // Add Server Modal
+    function showAddServerModal() {
+      openModal('Add Server', `
+        <div class="form-group">
+          <label class="form-label">Server Name</label>
+          <input type="text" class="form-input" id="server-name" placeholder="my-server">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <input type="text" class="form-input" id="server-description" placeholder="What does this server do?">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Transport Type</label>
+          <select class="form-select" id="server-transport">
+            <option value="stdio">stdio (Local process)</option>
+            <option value="sse">SSE (HTTP Server)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Command</label>
+          <input type="text" class="form-input" id="server-command" placeholder="npx">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Arguments (comma-separated)</label>
+          <input type="text" class="form-input" id="server-args" placeholder="-y, @modelcontextprotocol/server-memory">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Environment Variables (JSON)</label>
+          <textarea class="form-textarea" id="server-env" placeholder='{"API_KEY": "your-key"}'></textarea>
+        </div>
+      `, `
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="createServer()">Create Server</button>
+      `);
+    }
+
+    async function createServer() {
+      const name = document.getElementById('server-name').value;
+      const description = document.getElementById('server-description').value;
+      const transport = document.getElementById('server-transport').value;
+      const command = document.getElementById('server-command').value;
+      const argsStr = document.getElementById('server-args').value;
+      const envStr = document.getElementById('server-env').value;
+
+      if (!name || !command) {
+        showToast('error', 'Name and command are required');
+        return;
+      }
+
+      let env = {};
+      if (envStr) {
+        try { env = JSON.parse(envStr); } catch { showToast('error', 'Invalid JSON for env'); return; }
+      }
+
+      const args = argsStr ? argsStr.split(',').map(a => a.trim()) : [];
+
+      try {
+        const res = await fetch(`${API_BASE}/servers`, {
+          method: 'POST',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name, description,
+            transport: { type: transport, command, args, env }
+          })
+        });
+
+        if (res.ok) {
+          showToast('success', 'Server created successfully');
+          closeModal();
+          refreshData();
+        } else {
+          const json = await res.json();
+          showToast('error', json.error || 'Failed to create server');
+        }
+      } catch (err) {
+        showToast('error', 'Failed to create server');
+      }
+    }
+
+    // Tool Invocation Modal
+    function showToolInvocationModal(toolName, schema) {
+      const properties = schema?.properties || {};
+      const required = schema?.required || [];
+
+      let formFields = Object.entries(properties).map(([key, prop]) => `
+        <div class="form-group">
+          <label class="form-label">${key} ${required.includes(key) ? '<span style="color: var(--error);">*</span>' : ''}</label>
+          ${prop.type === 'boolean' ?
+            `<select class="form-select" id="param-${key}">
+              <option value="">-- Select --</option>
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>` :
+            `<input type="${prop.type === 'number' ? 'number' : 'text'}" class="form-input" id="param-${key}" placeholder="${prop.description || ''}">` }
+          ${prop.description ? `<div class="form-hint">${prop.description}</div>` : ''}
+        </div>
+      `).join('');
+
+      if (!formFields) formFields = '<p style="color: var(--text-muted);">This tool has no parameters</p>';
+
+      openModal(`Invoke: ${toolName}`, `
+        <form id="tool-invoke-form">
+          ${formFields}
+        </form>
+        <div id="tool-result"></div>
+      `, `
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="invokeTool('${toolName}')">Invoke Tool</button>
+      `);
+    }
+
+    async function invokeTool(toolName) {
+      const resultDiv = document.getElementById('tool-result');
+      resultDiv.innerHTML = '<div class="spinner" style="margin: 20px auto;"></div>';
+
+      const form = document.getElementById('tool-invoke-form');
+      const params = {};
+
+      form.querySelectorAll('input, select').forEach(el => {
+        const key = el.id.replace('param-', '');
+        let value = el.value;
+        if (value === '') return;
+        if (el.type === 'number') value = Number(value);
+        if (value === 'true') value = true;
+        if (value === 'false') value = false;
+        params[key] = value;
+      });
+
+      try {
+        const res = await fetch(`${API_BASE}/tools/${encodeURIComponent(toolName)}/invoke`, {
+          method: 'POST',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ params })
+        });
+
+        const json = await res.json();
+
+        if (json.success) {
+          const content = json.data?.result?.content?.[0]?.text || JSON.stringify(json.data, null, 2);
+          resultDiv.innerHTML = `
+            <div class="result-container">
+              <div class="result-header">
+                <div class="result-status success">&#x2705; Success (${json.data.durationMs || 0}ms)</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, \`${encodeURIComponent(content)}\`)">Copy</button>
+              </div>
+              <div class="result-output">${escapeHtml(content.substring(0, 5000))}</div>
+            </div>
+          `;
+        } else {
+          resultDiv.innerHTML = `
+            <div class="result-container">
+              <div class="result-header">
+                <div class="result-status error">&#x274C; Error</div>
+              </div>
+              <div class="result-output">${escapeHtml(json.error || 'Unknown error')}</div>
+            </div>
+          `;
+        }
+      } catch (err) {
+        resultDiv.innerHTML = `<div class="result-container"><div class="result-status error">&#x274C; ${err.message}</div></div>`;
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Copy to clipboard
+    function copyToClipboard(btn, text) {
+      navigator.clipboard.writeText(decodeURIComponent(text)).then(() => {
+        btn.classList.add('copied');
+        btn.textContent = 'Copied!';
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.textContent = 'Copy';
+        }, 2000);
+      });
+    }
+
+    // Command palette
+    const commands = [
+      { icon: '&#x1F4CA;', title: 'Go to Dashboard', hint: 'Overview of your servers', action: () => showPage('dashboard') },
+      { icon: '&#x1F5A5;', title: 'Go to Servers', hint: 'Manage server connections', action: () => showPage('servers') },
+      { icon: '&#x1F6E0;', title: 'Go to Tools', hint: 'Browse registered tools', action: () => showPage('tools') },
+      { icon: '&#x1F4CB;', title: 'Go to Templates', hint: 'Deploy from templates', action: () => showPage('templates') },
+      { icon: '&#x1F4C8;', title: 'Go to Metrics', hint: 'View performance stats', action: () => showPage('metrics') },
+      { icon: '&#x1F517;', title: 'Go to Webhooks', hint: 'Configure webhooks', action: () => showPage('webhooks') },
+      { icon: '&#x2795;', title: 'Add Server', hint: 'Create new server', action: showAddServerModal },
+      { icon: '&#x1F504;', title: 'Refresh Data', hint: 'Reload all data', action: refreshData },
+      { icon: '&#x1F319;', title: 'Toggle Theme', hint: 'Switch dark/light', action: toggleTheme },
+      { icon: '&#x1F511;', title: 'API Key Settings', hint: 'Configure API key', action: showApiKeyBanner },
+    ];
+
+    function openCommandPalette() {
+      const palette = document.getElementById('command-palette');
+      const input = document.getElementById('command-input');
+      palette.classList.add('active');
+      input.value = '';
+      input.focus();
+      renderCommandResults('');
+    }
+
+    function closeCommandPalette() {
+      document.getElementById('command-palette').classList.remove('active');
+    }
+
+    function renderCommandResults(query) {
+      const results = document.getElementById('command-results');
+      const filtered = commands.filter(c =>
+        c.title.toLowerCase().includes(query.toLowerCase()) ||
+        c.hint.toLowerCase().includes(query.toLowerCase())
+      );
+
+      results.innerHTML = filtered.map((c, i) => `
+        <div class="command-item ${i === 0 ? 'selected' : ''}" onclick="executeCommand(${commands.indexOf(c)})">
+          <span class="command-item-icon">${c.icon}</span>
+          <div class="command-item-text">
+            <div class="command-item-title">${c.title}</div>
+            <div class="command-item-hint">${c.hint}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function executeCommand(index) {
+      commands[index]?.action();
+      closeCommandPalette();
+    }
+
+    // Keyboard shortcuts
+    function initKeyboardShortcuts() {
+      document.addEventListener('keydown', (e) => {
+        // Cmd/Ctrl + K - Command palette
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+          e.preventDefault();
+          openCommandPalette();
+        }
+
+        // Escape - Close modals/palette
+        if (e.key === 'Escape') {
+          closeCommandPalette();
+          closeModal();
+        }
+
+        // Command palette navigation
+        const palette = document.getElementById('command-palette');
+        if (palette.classList.contains('active')) {
+          const items = palette.querySelectorAll('.command-item');
+          const selected = palette.querySelector('.command-item.selected');
+          const currentIndex = Array.from(items).indexOf(selected);
+
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            items[currentIndex]?.classList.remove('selected');
+            items[Math.min(currentIndex + 1, items.length - 1)]?.classList.add('selected');
+          }
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            items[currentIndex]?.classList.remove('selected');
+            items[Math.max(currentIndex - 1, 0)]?.classList.add('selected');
+          }
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            selected?.click();
+          }
+        }
+
+        // Number keys for navigation (when not in input)
+        if (!e.target.matches('input, textarea, select') && !e.metaKey && !e.ctrlKey) {
+          const pageMap = { '1': 'dashboard', '2': 'servers', '3': 'tools', '4': 'templates', '5': 'metrics' };
+          if (pageMap[e.key]) {
+            e.preventDefault();
+            showPage(pageMap[e.key]);
+          }
+        }
+      });
+
+      // Command palette input
+      document.getElementById('command-input').addEventListener('input', (e) => {
+        renderCommandResults(e.target.value);
+      });
+    }
+
+    // Export config
+    async function exportConfig() {
+      try {
+        const res = await fetch(`${API_BASE}/servers`, { headers: getAuthHeaders() });
+        const json = await res.json();
+        if (json.success) {
+          const config = JSON.stringify(json.data, null, 2);
+          const blob = new Blob([config], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'mcp-connect-servers.json';
+          a.click();
+          URL.revokeObjectURL(url);
+          showToast('success', 'Config exported');
+        }
+      } catch (err) {
+        showToast('error', 'Failed to export config');
+      }
+    }
+
+    // Initialize everything
+    initTheme();
+    initKeyboardShortcuts();
 
     // Auto-refresh
     setInterval(fetchHealth, 30000);
