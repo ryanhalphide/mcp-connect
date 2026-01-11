@@ -115,6 +115,22 @@ samplingApi.post('/request', async (c) => {
 });
 
 /**
+ * GET /sampling/debug/:model
+ * Debug provider lookup for a specific model
+ */
+samplingApi.get('/debug/:model', (c) => {
+  const model = c.req.param('model');
+  const provider = providerRegistry.getProviderForModel(model);
+
+  return c.json({
+    model,
+    providerFound: !!provider,
+    providerType: provider?.type,
+    allProviders: providerRegistry.listProviders(),
+  });
+});
+
+/**
  * GET /sampling/providers
  * List available LLM providers and their models
  */

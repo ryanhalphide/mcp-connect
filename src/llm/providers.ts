@@ -282,16 +282,19 @@ export class AnthropicProvider implements LLMProvider {
   readonly type: ProviderType = 'anthropic';
   private config: ProviderConfig;
 
-  // Supported models
+  // Supported models (Claude 4.5 family - current as of Jan 2026)
   private readonly supportedModels = [
+    // Claude 4.5 family (current)
+    'claude-sonnet-4-5-20250929',
+    'claude-haiku-4-5-20251015',
+    'claude-opus-4-5-20251101',
+    'claude-sonnet-4-5',
+    'claude-haiku-4-5',
+    'claude-opus-4-5',
+    // Legacy Claude 3.x (deprecated January 2026)
     'claude-3-opus-20240229',
     'claude-3-sonnet-20240229',
     'claude-3-haiku-20240307',
-    'claude-3.5-sonnet-20241022',
-    'claude-3-opus',
-    'claude-3-sonnet',
-    'claude-3-haiku',
-    'claude-3.5-sonnet',
   ];
 
   constructor(config: ProviderConfig) {
@@ -312,6 +315,15 @@ export class AnthropicProvider implements LLMProvider {
    * Complete a chat request
    */
   async complete(request: LLMRequest): Promise<LLMResponse> {
+    logger.debug(
+      {
+        requestModel: request.model,
+        supportedModels: this.supportedModels,
+        isSupported: this.isModelSupported(request.model),
+      },
+      'Anthropic model check'
+    );
+
     if (!this.isModelSupported(request.model)) {
       throw new ProviderError('anthropic', `Unsupported model: ${request.model}`);
     }
@@ -508,7 +520,7 @@ export class ProviderRegistry {
       if (provider.type === 'openai') {
         models.push('gpt-4-turbo', 'gpt-3.5-turbo');
       } else if (provider.type === 'anthropic') {
-        models.push('claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku');
+        models.push('claude-sonnet-4-5', 'claude-haiku-4-5', 'claude-opus-4-5');
       }
 
       result.push({ type: provider.type, models });
