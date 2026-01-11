@@ -5,8 +5,15 @@ import { WorkflowEngine } from '../workflows/engine.js';
 import type { WorkflowDefinition, WorkflowStatus } from '../workflows/types.js';
 import { serverDatabase } from '../storage/db.js';
 import { createChildLogger } from '../observability/logger.js';
+import { checkPermission } from '../rbac/enforcer.js';
+import { getAuditLogger } from '../observability/auditLog.js';
+import { UsageTracker } from '../observability/usageTracker.js';
 
 const logger = createChildLogger({ module: 'workflows-api' });
+
+// Initialize usage tracker
+const db = serverDatabase.getDatabase();
+const usageTracker = new UsageTracker(db);
 
 // Helper to create API response
 function apiResponse<T>(data: T | null = null, success = true, error?: string): ApiResponse<T> {
@@ -15,6 +22,14 @@ function apiResponse<T>(data: T | null = null, success = true, error?: string): 
     data: data as T,
     error,
     timestamp: new Date().toISOString(),
+  };
+}
+
+// Helper to extract API key and tenant ID from context
+function getContextInfo(c: any): { apiKeyId: string | null; tenantId: string | null } {
+  return {
+    apiKeyId: c.get('apiKeyId') || null,
+    tenantId: c.get('tenantId') || null,
   };
 }
 
@@ -61,7 +76,10 @@ const ExecutionListQuerySchema = z.object({
  * GET /workflows
  * List all workflows
  */
-workflowsApi.get('/', (c) => {
+workflowsApi.get('/', checkPermission('workflows:read'), (c) => {
+  const startTime = Date.now();
+  const { apiKeyId, tenantId } = getContextInfo(c);
+
   try {
     const queryParams = c.req.query();
     const validated = ListQuerySchema.parse(queryParams);
@@ -71,6 +89,24 @@ workflowsApi.get('/', (c) => {
       limit: validated.limit,
       offset: validated.offset,
       enabled: validated.enabled,
+    });
+
+    // Audit log successful workflow list
+    getAuditLogger().log({
+      action: 'workflow.list',
+      apiKeyId,
+      resourceType: 'workflow',
+      resourceId: null,
+      details: {
+        tenantId,
+        count: result.total,
+        limit: validated.limit,
+        offset: validated.offset,
+      },
+      ipAddress: null,
+      userAgent: null,
+      durationMs: Date.now() - startTime,
+      success: true,
     });
 
     return c.json(
@@ -83,6 +119,23 @@ workflowsApi.get('/', (c) => {
     );
   } catch (error) {
     logger.error({ error }, 'Failed to list workflows');
+
+    // Audit log failed workflow list
+    getAuditLogger().log({
+      action: 'workflow.list',
+      apiKeyId,
+      resourceType: 'workflow',
+      resourceId: null,
+      details: {
+        tenantId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      ipAddress: null,
+      userAgent: null,
+      durationMs: Date.now() - startTime,
+      success: false,
+    });
+
     if (error instanceof z.ZodError) {
       return c.json(apiResponse(null, false, `Validation error: ${error.message}`), 400);
     }
@@ -97,7 +150,10 @@ workflowsApi.get('/', (c) => {
  * POST /workflows
  * Create a new workflow
  */
-workflowsApi.post('/', async (c) => {
+workflowsApi.post('/', checkPermission('workflows:write'), async (c) => {
+  const startTime = Date.now();
+  const { apiKeyId, tenantId } = getContextInfo(c);
+
   try {
     const body = await c.req.json();
     const validated = WorkflowDefinitionSchema.parse(body);
@@ -107,9 +163,43 @@ workflowsApi.post('/', async (c) => {
 
     logger.info({ workflowId: workflow.id, name: workflow.name }, 'Workflow created via API');
 
+    // Audit log workflow creation
+    getAuditLogger().log({
+      action: 'workflow.create',
+      apiKeyId,
+      resourceType: 'workflow',
+      resourceId: workflow.id,
+      details: {
+        tenantId,
+        name: workflow.name,
+        stepCount: workflow.definition.steps.length,
+      },
+      ipAddress: null,
+      userAgent: null,
+      durationMs: Date.now() - startTime,
+      success: true,
+    });
+
     return c.json(apiResponse(workflow), 201);
   } catch (error) {
     logger.error({ error }, 'Failed to create workflow');
+
+    // Audit log failed workflow creation
+    getAuditLogger().log({
+      action: 'workflow.create',
+      apiKeyId,
+      resourceType: 'workflow',
+      resourceId: null,
+      details: {
+        tenantId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      ipAddress: null,
+      userAgent: null,
+      durationMs: Date.now() - startTime,
+      success: false,
+    });
+
     if (error instanceof z.ZodError) {
       return c.json(apiResponse(null, false, `Validation error: ${error.message}`), 400);
     }
@@ -124,7 +214,7 @@ workflowsApi.post('/', async (c) => {
  * GET /workflows/:id
  * Get a specific workflow
  */
-workflowsApi.get('/:id', (c) => {
+workflowsApi.get('/:id', checkPermission('workflows:read'), (c) => {
   try {
     const id = c.req.param('id');
     const engine = new WorkflowEngine(serverDatabase.getDatabase());
@@ -148,7 +238,10 @@ workflowsApi.get('/:id', (c) => {
  * PUT /workflows/:id
  * Update a workflow
  */
-workflowsApi.put('/:id', async (c) => {
+workflowsApi.put('/:id', checkPermission('workflows:write'), async (c) => {
+  const startTime = Date.now();
+  const { apiKeyId, tenantId } = getContextInfo(c);
+
   try {
     const id = c.req.param('id');
     const body = await c.req.json();
@@ -164,9 +257,42 @@ workflowsApi.put('/:id', async (c) => {
     const workflow = engine.getWorkflow(id);
     logger.info({ workflowId: id, name: workflow?.name }, 'Workflow updated via API');
 
+    // Audit log workflow update
+    getAuditLogger().log({
+      action: 'workflow.update',
+      apiKeyId,
+      resourceType: 'workflow',
+      resourceId: id,
+      details: {
+        tenantId,
+        name: workflow?.name,
+      },
+      ipAddress: null,
+      userAgent: null,
+      durationMs: Date.now() - startTime,
+      success: true,
+    });
+
     return c.json(apiResponse(workflow));
   } catch (error) {
     logger.error({ error }, 'Failed to update workflow');
+
+    // Audit log failed workflow update
+    getAuditLogger().log({
+      action: 'workflow.update',
+      apiKeyId,
+      resourceType: 'workflow',
+      resourceId: c.req.param('id'),
+      details: {
+        tenantId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      ipAddress: null,
+      userAgent: null,
+      durationMs: Date.now() - startTime,
+      success: false,
+    });
+
     if (error instanceof z.ZodError) {
       return c.json(apiResponse(null, false, `Validation error: ${error.message}`), 400);
     }
@@ -181,9 +307,12 @@ workflowsApi.put('/:id', async (c) => {
  * DELETE /workflows/:id
  * Delete a workflow
  */
-workflowsApi.delete('/:id', (c) => {
+workflowsApi.delete('/:id', checkPermission('workflows:delete'), (c) => {
+  const startTime = Date.now();
+  const { apiKeyId, tenantId } = getContextInfo(c);
+  const id = c.req.param('id');
+
   try {
-    const id = c.req.param('id');
     const engine = new WorkflowEngine(serverDatabase.getDatabase());
     const deleted = engine.deleteWorkflow(id);
 
@@ -193,9 +322,41 @@ workflowsApi.delete('/:id', (c) => {
 
     logger.info({ workflowId: id }, 'Workflow deleted via API');
 
+    // Audit log workflow deletion
+    getAuditLogger().log({
+      action: 'workflow.delete',
+      apiKeyId,
+      resourceType: 'workflow',
+      resourceId: id,
+      details: {
+        tenantId,
+      },
+      ipAddress: null,
+      userAgent: null,
+      durationMs: Date.now() - startTime,
+      success: true,
+    });
+
     return c.json(apiResponse({ message: 'Workflow deleted successfully' }));
   } catch (error) {
     logger.error({ error }, 'Failed to delete workflow');
+
+    // Audit log failed workflow deletion
+    getAuditLogger().log({
+      action: 'workflow.delete',
+      apiKeyId,
+      resourceType: 'workflow',
+      resourceId: id,
+      details: {
+        tenantId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      ipAddress: null,
+      userAgent: null,
+      durationMs: Date.now() - startTime,
+      success: false,
+    });
+
     return c.json(
       apiResponse(null, false, error instanceof Error ? error.message : 'Failed to delete workflow'),
       500
@@ -207,9 +368,12 @@ workflowsApi.delete('/:id', (c) => {
  * POST /workflows/:id/execute
  * Execute a workflow
  */
-workflowsApi.post('/:id/execute', async (c) => {
+workflowsApi.post('/:id/execute', checkPermission('workflows:execute'), async (c) => {
+  const startTime = Date.now();
+  const { apiKeyId, tenantId } = getContextInfo(c);
+  const id = c.req.param('id');
+
   try {
-    const id = c.req.param('id');
     const body = await c.req.json().catch(() => ({}));
     const validated = ExecuteWorkflowSchema.parse(body);
 
@@ -219,6 +383,58 @@ workflowsApi.post('/:id/execute', async (c) => {
 
     // Execute workflow asynchronously (don't await)
     const execution = await engine.executeWorkflow(id, validated.input, validated.triggeredBy);
+
+    const durationMs = Date.now() - startTime;
+
+    // Get step costs from database
+    const stepCostStmt = db.prepare(`
+      SELECT SUM(tokens_used) as total_tokens, SUM(cost_credits) as total_cost
+      FROM workflow_execution_steps
+      WHERE execution_id = ?
+    `);
+    const stepCosts = stepCostStmt.get(execution.id) as {
+      total_tokens: number | null;
+      total_cost: number | null;
+    };
+
+    const totalTokens = stepCosts.total_tokens || 0;
+    const totalCost = stepCosts.total_cost || 0;
+
+    // Audit log workflow execution
+    getAuditLogger().log({
+      action: 'workflow.execute',
+      apiKeyId,
+      resourceType: 'workflow',
+      resourceId: id,
+      details: {
+        tenantId,
+        executionId: execution.id,
+        triggeredBy: validated.triggeredBy,
+        status: execution.status,
+        hasInput: !!validated.input,
+        totalTokens,
+        totalCost,
+      },
+      ipAddress: null,
+      userAgent: null,
+      durationMs,
+      success: execution.status !== 'failed',
+    });
+
+    // Track usage and cost with actual step costs
+    usageTracker.track('workflow:execute', {
+      apiKeyId: apiKeyId || undefined,
+      tenantId: tenantId || undefined,
+      serverId: undefined, // Workflows can span multiple servers
+      durationMs,
+      tokensUsed: totalTokens,
+      costCredits: totalCost,
+      metadata: {
+        workflowId: id,
+        executionId: execution.id,
+        status: execution.status,
+      },
+    });
 
     return c.json(
       apiResponse({
@@ -231,6 +447,23 @@ workflowsApi.post('/:id/execute', async (c) => {
     );
   } catch (error) {
     logger.error({ error }, 'Failed to execute workflow');
+
+    // Audit log failed workflow execution
+    getAuditLogger().log({
+      action: 'workflow.execute',
+      apiKeyId,
+      resourceType: 'workflow',
+      resourceId: id,
+      details: {
+        tenantId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      ipAddress: null,
+      userAgent: null,
+      durationMs: Date.now() - startTime,
+      success: false,
+    });
+
     if (error instanceof z.ZodError) {
       return c.json(apiResponse(null, false, `Validation error: ${error.message}`), 400);
     }
@@ -245,7 +478,7 @@ workflowsApi.post('/:id/execute', async (c) => {
  * GET /workflows/:id/executions
  * List executions for a workflow
  */
-workflowsApi.get('/:id/executions', (c) => {
+workflowsApi.get('/:id/executions', checkPermission('workflows:read'), (c) => {
   try {
     const id = c.req.param('id');
     const queryParams = c.req.query();
@@ -282,7 +515,7 @@ workflowsApi.get('/:id/executions', (c) => {
  * GET /executions/:id
  * Get execution details including steps
  */
-workflowsApi.get('/executions/:id', (c) => {
+workflowsApi.get('/executions/:id', checkPermission('workflows:read'), (c) => {
   try {
     const id = c.req.param('id');
     const engine = new WorkflowEngine(serverDatabase.getDatabase());

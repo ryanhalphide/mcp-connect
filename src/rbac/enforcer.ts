@@ -7,6 +7,7 @@ import type { Context, Next } from 'hono';
 import { serverDatabase } from '../storage/db.js';
 import { hasPermission } from './policy.js';
 import { createChildLogger } from '../observability/logger.js';
+import { getAuditLogger } from '../observability/auditLog.js';
 
 const logger = createChildLogger({ module: 'rbac-enforcer' });
 
@@ -62,6 +63,25 @@ export function checkPermission(permission: string) {
 
     if (!allowed) {
       logger.warn({ apiKeyId, permission }, 'Permission denied');
+
+      // Audit log the permission denial
+      const tenantId = c.get('tenantId') as string | undefined;
+      getAuditLogger().log({
+        action: 'auth.failure' as any, // Use auth.failure for RBAC denials
+        apiKeyId,
+        resourceType: 'permission',
+        resourceId: permission,
+        details: {
+          tenantId: tenantId || null,
+          reason: 'insufficient_permissions',
+          required: permission,
+        },
+        ipAddress: null,
+        userAgent: null,
+        durationMs: null,
+        success: false,
+      });
+
       return c.json(
         apiResponse({
           error: 'Insufficient permissions',

@@ -12,6 +12,7 @@ import type {
 import { WorkflowContext } from './context.js';
 import { WorkflowExecutor } from './executor.js';
 import { createChildLogger } from '../observability/logger.js';
+import { stepCostTracker, type StepCostData } from './stepCostTracker.js';
 
 const logger = createChildLogger({ module: 'workflow-engine' });
 
@@ -130,6 +131,9 @@ export class WorkflowEngine {
     // Create execution context
     const context = new WorkflowContext(input || {});
 
+    // Track costs across all steps
+    const stepCosts: StepCostData[] = [];
+
     try {
       // Execute steps sequentially
       const output: Record<string, unknown> = {};
@@ -152,8 +156,13 @@ export class WorkflowEngine {
           const result = await this.executor.executeWithRetry(step, context, step.retryConfig);
 
           if (result.success) {
+            // Track cost data if available
+            if (result.costData) {
+              stepCosts.push(result.costData);
+            }
+
             // Update step as completed
-            await this.updateExecutionStep(stepId, 'completed', result.output, undefined, result.retries);
+            await this.updateExecutionStep(stepId, 'completed', result.output, undefined, result.retries, result.costData);
 
             // Store output in context
             context.setStepOutput(step.name, result.output);
@@ -162,7 +171,7 @@ export class WorkflowEngine {
             logger.info({ executionId, stepName: step.name, retries: result.retries }, 'Step completed');
           } else {
             // Handle step failure based on error strategy
-            await this.updateExecutionStep(stepId, 'failed', undefined, result.error, result.retries);
+            await this.updateExecutionStep(stepId, 'failed', undefined, result.error, result.retries, result.costData);
             context.setStepError(step.name, result.error || 'Unknown error');
 
             const errorStrategy = step.onError || 'stop';
@@ -182,10 +191,21 @@ export class WorkflowEngine {
         }
       }
 
+      // Aggregate costs from all steps
+      const aggregatedCosts = stepCostTracker.aggregateCosts(stepCosts);
+
       // Mark execution as completed
       await this.completeExecution(executionId, 'completed', output);
 
-      logger.info({ executionId, workflowId }, 'Workflow execution completed successfully');
+      logger.info(
+        {
+          executionId,
+          workflowId,
+          totalCost: aggregatedCosts.totalCost,
+          totalTokens: aggregatedCosts.totalTokens
+        },
+        'Workflow execution completed successfully'
+      );
 
       return this.getExecution(executionId)!;
     } catch (error) {
@@ -228,13 +248,15 @@ export class WorkflowEngine {
     status: StepStatus,
     output?: unknown,
     error?: string,
-    retryCount?: number
+    retryCount?: number,
+    costData?: StepCostData
   ): Promise<void> {
     const completedAt = status === 'completed' || status === 'failed' ? new Date().toISOString() : null;
 
     const stmt = this.db.prepare(`
       UPDATE workflow_execution_steps
-      SET status = ?, output_json = ?, error = ?, retry_count = ?, completed_at = ?
+      SET status = ?, output_json = ?, error = ?, retry_count = ?, completed_at = ?,
+          tokens_used = ?, cost_credits = ?, model_name = ?, duration_ms = ?
       WHERE id = ?
     `);
 
@@ -244,6 +266,10 @@ export class WorkflowEngine {
       error || null,
       retryCount || 0,
       completedAt,
+      costData?.tokensUsed || 0,
+      costData?.costCredits || 0,
+      costData?.modelName || null,
+      costData?.durationMs || null,
       stepId
     );
   }

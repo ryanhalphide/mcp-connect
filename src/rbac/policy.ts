@@ -70,6 +70,9 @@ export const PERMISSIONS: Permission[] = [
   // Usage metrics
   { name: 'usage:read', resource: 'usage', action: 'read', description: 'View usage metrics' },
 
+  // Analytics dashboard
+  { name: 'analytics:read', resource: 'analytics', action: 'read', description: 'View analytics and cost reports' },
+
   // RBAC management
   { name: 'rbac:read', resource: 'rbac', action: 'read', description: 'View roles and permissions' },
   { name: 'rbac:write', resource: 'rbac', action: 'write', description: 'Manage roles and permissions' },

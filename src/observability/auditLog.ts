@@ -26,7 +26,12 @@ export type AuditAction =
   | 'circuit.close'
   | 'circuit.reset'
   | 'auth.success'
-  | 'auth.failure';
+  | 'auth.failure'
+  | 'workflow.list'
+  | 'workflow.create'
+  | 'workflow.update'
+  | 'workflow.delete'
+  | 'workflow.execute';
 
 export interface AuditEntry {
   id: string;
@@ -107,11 +112,17 @@ export class AuditLogger {
     const id = uuidv4();
     const timestamp = new Date();
 
+    // Extract tenant_id from details if present
+    const tenantId = (entry.details as any)?.tenantId || null;
+
+    // Extract error from details if present
+    const error = (entry.details as any)?.error || null;
+
     const stmt = this.db.prepare(`
       INSERT INTO audit_log (
-        id, timestamp, action, api_key_id, resource_type, resource_id,
-        details_json, ip_address, user_agent, duration_ms, success
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, timestamp, action, api_key_id, tenant_id, resource_type, resource_id,
+        server_id, status, duration_ms, metadata_json, error
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -119,13 +130,14 @@ export class AuditLogger {
       timestamp.toISOString(),
       entry.action,
       entry.apiKeyId,
+      tenantId,
       entry.resourceType,
       entry.resourceId,
-      JSON.stringify(entry.details || {}),
-      entry.ipAddress,
-      entry.userAgent,
+      null, // server_id - not used for most operations
+      entry.success ? 'success' : 'failure',
       entry.durationMs,
-      entry.success ? 1 : 0
+      JSON.stringify(entry.details || {}),
+      error
     );
 
     logger.debug(

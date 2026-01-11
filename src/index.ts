@@ -33,6 +33,7 @@ import { tenantsApi } from './api/tenants.js';
 import { rbacApi } from './api/rbac.js';
 import { usageApi } from './api/usage.js';
 import { dockerApi } from './api/docker.js';
+import { analyticsApi } from './api/analytics.js';
 import { connectionPool } from './core/pool.js';
 import { toolRegistry } from './core/registry.js';
 import { resourceRegistry } from './core/resourceRegistry.js';
@@ -140,6 +141,9 @@ app.route('/api/usage-metrics', usageApi);
 // Mount Docker MCP management routes (requires auth)
 app.use('/api/docker/*', authMiddleware);
 app.route('/api/docker', dockerApi);
+
+app.use('/api/analytics/*', authMiddleware);
+app.route('/api/analytics', analyticsApi);
 
 // Mount Prometheus metrics endpoint (public - standard for metrics scraping)
 app.route('/metrics', prometheusApi);
@@ -336,9 +340,11 @@ startup().then(() => {
           tenants: `http://localhost:${info.port}/api/tenants (auth + tenants:read)`,
           rbac: `http://localhost:${info.port}/api/rbac (auth + rbac:read)`,
           usageMetrics: `http://localhost:${info.port}/api/usage-metrics (auth + usage:read)`,
+          analytics: `http://localhost:${info.port}/api/analytics (auth + analytics:read)`,
           metrics: `http://localhost:${info.port}/metrics`,
           monitor: `http://localhost:${info.port}/api/monitor`,
           dashboard: `http://localhost:${info.port}/api/monitor/dashboard`,
+          analyticsDashboard: `http://localhost:${info.port}/analytics.html`,
         },
         authentication: {
           masterKey: process.env.MASTER_API_KEY ? 'configured' : 'NOT CONFIGURED',

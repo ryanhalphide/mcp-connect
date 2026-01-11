@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Connect - Analytics Dashboard</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-900);
+            line-height: 1.6;
+        }
+
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: var(--gray-700);
+            font-size: 14px;
+        }
+
+        .nav {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .nav-button {
+            padding: 10px 20px;
+            border: none;
+            background: var(--gray-100);
+            color: var(--gray-700);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .nav-button:hover {
+            background: var(--gray-200);
+        }
+
+        .nav-button.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .kpi-label {
+            font-size: 14px;
+            color: var(--gray-700);
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 4px;
+        }
+
+        .kpi-change {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .kpi-change.positive {
+            color: var(--success);
+        }
+
+        .kpi-change.negative {
+            color: var(--danger);
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 20px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .table-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th {
+            text-align: left;
+            padding: 12px;
+            background: var(--gray-50);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-700);
+            border-bottom: 2px solid var(--gray-200);
+        }
+
+        .table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--gray-200);
+            font-size: 14px;
+        }
+
+        .table tr:hover {
+            background: var(--gray-50);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge.warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge.danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: var(--gray-700);
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .config-panel {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+            display: flex;
+            align-items: flex-end;
+            gap: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-700);
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .button {
+            padding: 10px 20px;
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .button:hover {
+            background: var(--primary-dark);
+        }
+
+        .workflow-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .workflow-link:hover {
+            text-decoration: underline;
+        }
+
+        .export-button {
+            padding: 8px 16px;
+            border: 1px solid var(--gray-300);
+            background: white;
+            color: var(--gray-700);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .export-button:hover {
+            background: var(--gray-50);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .export-section {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .date-filter-panel {
+            background: white;
+            padding: 20px 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+            display: flex;
+            align-items: flex-end;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .date-presets {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .preset-button {
+            padding: 8px 16px;
+            border: 1px solid var(--gray-300);
+            background: white;
+            color: var(--gray-700);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .preset-button:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .preset-button.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .date-inputs {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .date-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .date-input-group label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+
+        .date-input-group input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .date-input-group input[type="date"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .apply-filter-button {
+            padding: 8px 20px;
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .apply-filter-button:hover {
+            background: var(--primary-dark);
+        }
+
+        .filter-info {
+            font-size: 13px;
+            color: var(--gray-700);
+            padding: 8px 12px;
+            background: var(--gray-50);
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 768px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .date-filter-panel {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .date-inputs {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // CSV Export Utilities
+        const CSVExport = {
+            // Convert array of objects to CSV string
+            toCSV(data, columns) {
+                if (!data || data.length === 0) {
+                    return '';
+                }
+
+                // Create header row
+                const headers = columns.map(col => col.label).join(',');
+
+                // Create data rows
+                const rows = data.map(item => {
+                    return columns.map(col => {
+                        let value = col.accessor(item);
+
+                        // Handle values that need quotes (contains comma, newline, or quotes)
+                        if (value === null || value === undefined) {
+                            return '';
+                        }
+
+                        value = String(value);
+                        if (value.includes(',') || value.includes('\n') || value.includes('"')) {
+                            value = `"${value.replace(/"/g, '""')}"`;
+                        }
+
+                        return value;
+                    }).join(',');
+                });
+
+                return [headers, ...rows].join('\n');
+            },
+
+            // Download CSV file
+            download(csvContent, filename) {
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+
+                if (link.download !== undefined) {
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', filename);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                }
+            },
+
+            // Format timestamp for filename
+            formatTimestamp() {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+                return `${year}${month}${day}_${hours}${minutes}${seconds}`;
+            },
+
+            // Export with auto-generated filename
+            exportData(data, columns, baseFilename) {
+                const csvContent = this.toCSV(data, columns);
+                const timestamp = this.formatTimestamp();
+                const filename = `${baseFilename}_${timestamp}.csv`;
+                this.download(csvContent, filename);
+            }
+        };
+
+        // PDF Export Utilities
+        const PDFExport = {
+            // Create new PDF document
+            createPDF() {
+                const { jsPDF } = window.jspdf;
+                return new jsPDF('p', 'mm', 'a4');
+            },
+
+            // Add header to PDF
+            addHeader(doc, title, dateFilter) {
+                doc.setFontSize(20);
+                doc.setTextColor(59, 130, 246); // Primary blue
+                doc.text('MCP Connect Analytics', 15, 20);
+
+                doc.setFontSize(14);
+                doc.setTextColor(55, 65, 81); // Gray-700
+                doc.text(title, 15, 30);
+
+                doc.setFontSize(10);
+                doc.setTextColor(107, 114, 128); // Gray-500
+                const dateText = dateFilter?.label || 'All Time';
+                doc.text(`Period: ${dateText}`, 15, 37);
+
+                const timestamp = new Date().toLocaleString();
+                doc.text(`Generated: ${timestamp}`, 15, 42);
+
+                // Horizontal line
+                doc.setDrawColor(229, 231, 235); // Gray-200
+                doc.line(15, 45, 195, 45);
+
+                return 50; // Return Y position for content
+            },
+
+            // Add footer to PDF
+            addFooter(doc) {
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setTextColor(156, 163, 175); // Gray-400
+                    doc.text(
+                        `Page ${i} of ${pageCount}`,
+                        doc.internal.pageSize.width / 2,
+                        doc.internal.pageSize.height - 10,
+                        { align: 'center' }
+                    );
+                }
+            },
+
+            // Add table to PDF
+            addTable(doc, startY, title, columns, data) {
+                doc.setFontSize(12);
+                doc.setTextColor(31, 41, 55); // Gray-800
+                doc.text(title, 15, startY);
+
+                doc.autoTable({
+                    startY: startY + 5,
+                    head: [columns.map(col => col.label)],
+                    body: data.map(item => columns.map(col => {
+                        const value = col.accessor(item);
+                        return value !== null && value !== undefined ? String(value) : '';
+                    })),
+                    theme: 'striped',
+                    headStyles: {
+                        fillColor: [59, 130, 246], // Primary blue
+                        textColor: 255,
+                        fontSize: 10,
+                        fontStyle: 'bold'
+                    },
+                    bodyStyles: {
+                        fontSize: 9,
+                        textColor: [55, 65, 81] // Gray-700
+                    },
+                    alternateRowStyles: {
+                        fillColor: [249, 250, 251] // Gray-50
+                    },
+                    margin: { left: 15, right: 15 }
+                });
+
+                return doc.lastAutoTable.finalY + 10;
+            },
+
+            // Add chart image to PDF
+            async addChart(doc, startY, title, canvas, width = 180, height = 100) {
+                if (!canvas) return startY;
+
+                doc.setFontSize(12);
+                doc.setTextColor(31, 41, 55); // Gray-800
+                doc.text(title, 15, startY);
+
+                // Convert canvas to image
+                const imgData = canvas.toDataURL('image/png');
+                doc.addImage(imgData, 'PNG', 15, startY + 5, width, height);
+
+                return startY + height + 15;
+            },
+
+            // Add summary metrics (KPIs)
+            addMetrics(doc, startY, metrics) {
+                doc.setFontSize(12);
+                doc.setTextColor(31, 41, 55); // Gray-800
+                doc.text('Summary Metrics', 15, startY);
+
+                const boxWidth = 40;
+                const boxHeight = 25;
+                const gap = 10;
+                let xPos = 15;
+                let yPos = startY + 5;
+
+                metrics.forEach((metric, index) => {
+                    if (index > 0 && index % 4 === 0) {
+                        xPos = 15;
+                        yPos += boxHeight + gap;
+                    }
+
+                    // Box background
+                    doc.setFillColor(249, 250, 251); // Gray-50
+                    doc.rect(xPos, yPos, boxWidth, boxHeight, 'F');
+
+                    // Label
+                    doc.setFontSize(8);
+                    doc.setTextColor(107, 114, 128); // Gray-500
+                    doc.text(metric.label, xPos + 2, yPos + 5);
+
+                    // Value
+                    doc.setFontSize(14);
+                    doc.setTextColor(31, 41, 55); // Gray-800
+                    doc.text(metric.value, xPos + 2, yPos + 15);
+
+                    xPos += boxWidth + gap;
+                });
+
+                return yPos + boxHeight + 15;
+            },
+
+            // Format timestamp for filename
+            formatTimestamp() {
+                return CSVExport.formatTimestamp();
+            },
+
+            // Export and download PDF
+            exportPDF(doc, baseFilename) {
+                this.addFooter(doc);
+                const timestamp = this.formatTimestamp();
+                const filename = `${baseFilename}_${timestamp}.pdf`;
+                doc.save(filename);
+            }
+        };
+
+        // API Client
+        class AnalyticsAPI {
+            constructor(baseURL, apiKey) {
+                this.baseURL = baseURL;
+                this.apiKey = apiKey;
+            }
+
+            async request(endpoint) {
+                const response = await fetch(`${this.baseURL}${endpoint}`, {
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                if (!data.success) {
+                    throw new Error(data.error || 'API request failed');
+                }
+
+                return data.data;
+            }
+
+            getCostOverview(startDate, endDate) {
+                const params = new URLSearchParams();
+                if (startDate) params.append('startDate', startDate);
+                if (endDate) params.append('endDate', endDate);
+                const query = params.toString();
+                return this.request(`/api/analytics/cost/overview${query ? '?' + query : ''}`);
+            }
+
+            getCostTimeseries(interval = 'day', limit = 7, startDate, endDate) {
+                const params = new URLSearchParams({ interval, limit: limit.toString() });
+                if (startDate) params.append('startDate', startDate);
+                if (endDate) params.append('endDate', endDate);
+                return this.request(`/api/analytics/cost/timeseries?${params.toString()}`);
+            }
+
+            getCostBreakdown(groupBy = 'workflow', limit = 10, startDate, endDate) {
+                const params = new URLSearchParams({ groupBy, limit: limit.toString() });
+                if (startDate) params.append('startDate', startDate);
+                if (endDate) params.append('endDate', endDate);
+                return this.request(`/api/analytics/cost/breakdown?${params.toString()}`);
+            }
+
+            getCostComparison(startDate, endDate) {
+                const params = new URLSearchParams();
+                if (startDate) params.append('startDate', startDate);
+                if (endDate) params.append('endDate', endDate);
+                const query = params.toString();
+                return this.request(`/api/analytics/cost/comparison${query ? '?' + query : ''}`);
+            }
+
+            getPerformanceMetrics(startDate, endDate) {
+                const params = new URLSearchParams();
+                if (startDate) params.append('startDate', startDate);
+                if (endDate) params.append('endDate', endDate);
+                const query = params.toString();
+                return this.request(`/api/analytics/performance${query ? '?' + query : ''}`);
+            }
+
+            getWorkflowCosts(workflowId, startDate, endDate) {
+                const params = new URLSearchParams();
+                if (startDate) params.append('startDate', startDate);
+                if (endDate) params.append('endDate', endDate);
+                const query = params.toString();
+                return this.request(`/api/analytics/workflows/${workflowId}/costs${query ? '?' + query : ''}`);
+            }
+        }
+
+        // Chart Component
+        function ChartComponent({ type, data, options, title }) {
+            const canvasRef = useRef(null);
+            const chartRef = useRef(null);
+
+            useEffect(() => {
+                if (!canvasRef.current || !data) return;
+
+                // Destroy existing chart
+                if (chartRef.current) {
+                    chartRef.current.destroy();
+                }
+
+                // Create new chart
+                const ctx = canvasRef.current.getContext('2d');
+                chartRef.current = new Chart(ctx, {
+                    type,
+                    data,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        ...options
+                    }
+                });
+
+                return () => {
+                    if (chartRef.current) {
+                        chartRef.current.destroy();
+                    }
+                };
+            }, [type, data, options]);
+
+            return <canvas ref={canvasRef}></canvas>;
+        }
+
+        // KPI Card Component
+        function KPICard({ label, value, change, format = 'number' }) {
+            let displayValue = value;
+
+            if (format === 'currency') {
+                displayValue = `$${typeof value === 'number' ? value.toFixed(4) : value}`;
+            } else if (format === 'number') {
+                displayValue = typeof value === 'number' ? value.toLocaleString() : value;
+            }
+
+            return (
+                <div className="kpi-card">
+                    <div className="kpi-label">{label}</div>
+                    <div className="kpi-value">{displayValue}</div>
+                    {change !== undefined && change !== null && (
+                        <div className={`kpi-change ${change >= 0 ? 'positive' : 'negative'}`}>
+                            {change >= 0 ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // Date Range Filter Component
+        function DateRangeFilter({ onFilterChange, currentFilter }) {
+            const [preset, setPreset] = useState(currentFilter?.preset || '30d');
+            const [startDate, setStartDate] = useState(currentFilter?.startDate || '');
+            const [endDate, setEndDate] = useState(currentFilter?.endDate || '');
+
+            const presets = [
+                { id: '7d', label: 'Last 7 Days', days: 7 },
+                { id: '30d', label: 'Last 30 Days', days: 30 },
+                { id: '90d', label: 'Last 90 Days', days: 90 },
+                { id: 'custom', label: 'Custom Range', days: null }
+            ];
+
+            function handlePresetClick(presetId) {
+                setPreset(presetId);
+                const selectedPreset = presets.find(p => p.id === presetId);
+
+                if (selectedPreset && selectedPreset.days) {
+                    const end = new Date();
+                    const start = new Date();
+                    start.setDate(start.getDate() - selectedPreset.days);
+
+                    const startISO = start.toISOString();
+                    const endISO = end.toISOString();
+
+                    onFilterChange({
+                        preset: presetId,
+                        startDate: startISO,
+                        endDate: endISO,
+                        label: selectedPreset.label
+                    });
+                } else if (presetId === 'custom') {
+                    // Don't auto-apply, wait for user to set dates
+                }
+            }
+
+            function handleCustomApply() {
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    end.setHours(23, 59, 59, 999); // End of day
+
+                    onFilterChange({
+                        preset: 'custom',
+                        startDate: start.toISOString(),
+                        endDate: end.toISOString(),
+                        label: `${startDate} to ${endDate}`
+                    });
+                }
+            }
+
+            function getFilterInfo() {
+                if (!currentFilter) return 'Last 30 Days';
+                if (currentFilter.label) return currentFilter.label;
+                return 'Custom Range';
+            }
+
+            return (
+                <div className="date-filter-panel">
+                    <div className="date-presets">
+                        {presets.map(p => (
+                            <button
+                                key={p.id}
+                                className={`preset-button ${preset === p.id ? 'active' : ''}`}
+                                onClick={() => handlePresetClick(p.id)}
+                            >
+                                {p.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {preset === 'custom' && (
+                        <div className="date-inputs">
+                            <div className="date-input-group">
+                                <label>Start Date</label>
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="date-input-group">
+                                <label>End Date</label>
+                                <input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                />
+                            </div>
+                            <button
+                                className="apply-filter-button"
+                                onClick={handleCustomApply}
+                                disabled={!startDate || !endDate}
+                            >
+                                Apply
+                            </button>
+                        </div>
+                    )}
+
+                    <div className="filter-info">
+                        📅 {getFilterInfo()}
+                    </div>
+                </div>
+            );
+        }
+
+        // Overview Page
+        function OverviewPage({ api, dateFilter }) {
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [overview, setOverview] = useState(null);
+            const [timeseries, setTimeseries] = useState(null);
+            const [breakdown, setBreakdown] = useState(null);
+            const modelChartRef = useRef(null);
+            const trendChartRef = useRef(null);
+            const workflowChartRef = useRef(null);
+
+            useEffect(() => {
+                loadData();
+            }, [dateFilter]);
+
+            async function loadData() {
+                try {
+                    setLoading(true);
+                    setError(null);
+
+                    const startDate = dateFilter?.startDate;
+                    const endDate = dateFilter?.endDate;
+
+                    const [overviewData, timeseriesData, breakdownData] = await Promise.all([
+                        api.getCostOverview(startDate, endDate),
+                        api.getCostTimeseries('day', 7, startDate, endDate),
+                        api.getCostBreakdown('workflow', 5, startDate, endDate)
+                    ]);
+
+                    setOverview(overviewData);
+                    setTimeseries(timeseriesData);
+                    setBreakdown(breakdownData);
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            }
+
+            function exportModelBreakdown() {
+                const columns = [
+                    { label: 'Model', accessor: (item) => item.model_name },
+                    { label: 'Uses', accessor: (item) => item.uses },
+                    { label: 'Total Tokens', accessor: (item) => item.total_tokens },
+                    { label: 'Total Cost', accessor: (item) => item.total_cost.toFixed(4) },
+                    { label: 'Avg Cost', accessor: (item) => item.avg_cost.toFixed(4) }
+                ];
+                CSVExport.exportData(overview.modelBreakdown, columns, 'model_breakdown');
+            }
+
+            function exportTimeseries() {
+                const columns = [
+                    { label: 'Date', accessor: (item) => item.period },
+                    { label: 'Daily Cost', accessor: (item) => item.daily_cost.toFixed(4) },
+                    { label: 'Daily Tokens', accessor: (item) => item.daily_tokens },
+                    { label: 'Daily Executions', accessor: (item) => item.daily_executions }
+                ];
+                CSVExport.exportData(timeseries.data, columns, 'cost_trend');
+            }
+
+            function exportWorkflows() {
+                const columns = [
+                    { label: 'Workflow', accessor: (item) => item.name },
+                    { label: 'Executions', accessor: (item) => item.executions },
+                    { label: 'Total Cost', accessor: (item) => item.total_cost.toFixed(4) },
+                    { label: 'Avg Cost/Step', accessor: (item) => item.avg_step_cost.toFixed(4) },
+                    { label: 'Total Tokens', accessor: (item) => item.total_tokens }
+                ];
+                CSVExport.exportData(breakdown.data, columns, 'workflows_breakdown');
+            }
+
+            function exportOverviewPDF() {
+                const doc = PDFExport.createPDF();
+                let yPos = PDFExport.addHeader(doc, 'Cost Overview Report', dateFilter);
+
+                // Add KPI metrics
+                const metrics = [
+                    { label: 'Total Cost', value: `$${overview.totalCost.toFixed(4)}` },
+                    { label: 'Total Tokens', value: overview.totalTokens.toLocaleString() },
+                    { label: 'Total Executions', value: overview.totalExecutions.toString() },
+                    { label: 'Avg Cost/Execution', value: `$${overview.avgCostPerExecution.toFixed(4)}` }
+                ];
+                yPos = PDFExport.addMetrics(doc, yPos, metrics);
+
+                // Add Model Breakdown table
+                const modelColumns = [
+                    { label: 'Model', accessor: (item) => item.model_name },
+                    { label: 'Uses', accessor: (item) => item.uses },
+                    { label: 'Total Tokens', accessor: (item) => item.total_tokens },
+                    { label: 'Total Cost', accessor: (item) => `$${item.total_cost.toFixed(4)}` },
+                    { label: 'Avg Cost', accessor: (item) => `$${item.avg_cost.toFixed(4)}` }
+                ];
+                yPos = PDFExport.addTable(doc, yPos, 'Cost by Model', modelColumns, overview.modelBreakdown);
+
+                // Add Cost Trend chart if available
+                if (trendChartRef.current) {
+                    const canvas = trendChartRef.current.querySelector('canvas');
+                    if (canvas) {
+                        yPos = PDFExport.addChart(doc, yPos, 'Cost Trend (7 Days)', canvas, 180, 80);
+                    }
+                }
+
+                // Add Top Workflows table
+                const workflowColumns = [
+                    { label: 'Workflow', accessor: (item) => item.name },
+                    { label: 'Executions', accessor: (item) => item.executions },
+                    { label: 'Total Cost', accessor: (item) => `$${item.total_cost.toFixed(4)}` },
+                    { label: 'Avg Cost/Step', accessor: (item) => `$${item.avg_step_cost.toFixed(4)}` }
+                ];
+                yPos = PDFExport.addTable(doc, yPos, 'Top Workflows by Cost', workflowColumns, breakdown.data);
+
+                PDFExport.exportPDF(doc, 'overview_report');
+            }
+
+            if (loading) {
+                return <div className="loading">Loading analytics data...</div>;
+            }
+
+            if (error) {
+                return <div className="error">Error: {error}</div>;
+            }
+
+            // Prepare chart data
+            const modelChartData = {
+                labels: overview.modelBreakdown.map(m => m.model_name),
+                datasets: [{
+                    label: 'Cost by Model',
+                    data: overview.modelBreakdown.map(m => m.total_cost),
+                    backgroundColor: [
+                        '#3b82f6',
+                        '#10b981',
+                        '#f59e0b',
+                        '#ef4444',
+                        '#8b5cf6'
+                    ]
+                }]
+            };
+
+            const trendChartData = {
+                labels: timeseries.data.map(d => d.period).reverse(),
+                datasets: [{
+                    label: 'Daily Cost ($)',
+                    data: timeseries.data.map(d => d.total_cost).reverse(),
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            };
+
+            const workflowChartData = {
+                labels: breakdown.data.map(w => w.name),
+                datasets: [{
+                    label: 'Cost ($)',
+                    data: breakdown.data.map(w => w.total_cost),
+                    backgroundColor: '#3b82f6'
+                }]
+            };
+
+            return (
+                <>
+                    <div className="export-section">
+                        <button className="export-button" onClick={exportModelBreakdown}>
+                            📊 Export Model Breakdown
+                        </button>
+                        <button className="export-button" onClick={exportTimeseries}>
+                            📈 Export Cost Trend
+                        </button>
+                        <button className="export-button" onClick={exportWorkflows}>
+                            📋 Export Workflows
+                        </button>
+                        <button className="export-button" onClick={exportOverviewPDF}>
+                            📄 Export to PDF
+                        </button>
+                    </div>
+
+                    <div className="kpi-grid">
+                        <KPICard
+                            label="Total Cost (30 days)"
+                            value={overview.totalCost}
+                            format="currency"
+                        />
+                        <KPICard
+                            label="Total Tokens"
+                            value={overview.totalTokens}
+                            format="number"
+                        />
+                        <KPICard
+                            label="Total Executions"
+                            value={overview.totalExecutions}
+                            format="number"
+                        />
+                        <KPICard
+                            label="Avg Cost/Execution"
+                            value={(overview.totalCost / overview.totalExecutions).toFixed(4)}
+                            format="currency"
+                        />
+                    </div>
+
+                    <div className="chart-grid">
+                        <div className="chart-card">
+                            <h3 className="chart-title">Cost by Model</h3>
+                            <div className="chart-container" ref={modelChartRef}>
+                                <ChartComponent
+                                    type="doughnut"
+                                    data={modelChartData}
+                                    options={{
+                                        plugins: {
+                                            legend: {
+                                                position: 'bottom'
+                                            }
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="chart-card">
+                            <h3 className="chart-title">7-Day Cost Trend</h3>
+                            <div className="chart-container" ref={trendChartRef}>
+                                <ChartComponent
+                                    type="line"
+                                    data={trendChartData}
+                                    options={{
+                                        plugins: {
+                                            legend: {
+                                                display: false
+                                            }
+                                        },
+                                        scales: {
+                                            y: {
+                                                beginAtZero: true,
+                                                ticks: {
+                                                    callback: function(value) {
+                                                        return '$' + value.toFixed(2);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="table-card">
+                        <h3 className="chart-title">Top Workflows by Cost</h3>
+                        <table className="table">
+                            <thead>
+                                <tr>
+                                    <th>Workflow</th>
+                                    <th>Executions</th>
+                                    <th>Total Cost</th>
+                                    <th>Avg Cost/Step</th>
+                                    <th>Total Tokens</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {breakdown.data.map((workflow, i) => (
+                                    <tr key={i}>
+                                        <td>
+                                            <span className="workflow-link">{workflow.name}</span>
+                                        </td>
+                                        <td>{workflow.executions}</td>
+                                        <td>${workflow.total_cost.toFixed(4)}</td>
+                                        <td>${workflow.avg_step_cost.toFixed(4)}</td>
+                                        <td>{workflow.total_tokens.toLocaleString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            );
+        }
+
+        // Performance Page
+        function PerformancePage({ api, dateFilter }) {
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [metrics, setMetrics] = useState(null);
+            const durationChartRef = useRef(null);
+
+            useEffect(() => {
+                loadData();
+            }, [dateFilter]);
+
+            async function loadData() {
+                try {
+                    setLoading(true);
+                    setError(null);
+                    const startDate = dateFilter?.startDate;
+                    const endDate = dateFilter?.endDate;
+                    const data = await api.getPerformanceMetrics(startDate, endDate);
+                    setMetrics(data);
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            }
+
+            function exportSlowestSteps() {
+                const columns = [
+                    { label: 'Step Name', accessor: (item) => item.step_name },
+                    { label: 'Avg Duration (ms)', accessor: (item) => item.avg_duration.toFixed(2) },
+                    { label: 'Executions', accessor: (item) => item.executions }
+                ];
+                CSVExport.exportData(metrics.slowestSteps, columns, 'slowest_steps');
+            }
+
+            function exportSuccessRates() {
+                const columns = [
+                    { label: 'Workflow', accessor: (item) => item.workflow_name },
+                    { label: 'Total Executions', accessor: (item) => item.total_executions },
+                    { label: 'Successful', accessor: (item) => item.successful_executions },
+                    { label: 'Success Rate (%)', accessor: (item) => item.success_rate.toFixed(2) }
+                ];
+                CSVExport.exportData(metrics.successRates, columns, 'success_rates');
+            }
+
+            function exportCostEfficiency() {
+                const columns = [
+                    { label: 'Workflow', accessor: (item) => item.workflow_name },
+                    { label: 'Total Executions', accessor: (item) => item.executions },
+                    { label: 'Successful', accessor: (item) => item.successful_executions },
+                    { label: 'Total Cost', accessor: (item) => item.total_cost.toFixed(4) },
+                    { label: 'Cost per Success', accessor: (item) => item.cost_per_success.toFixed(6) }
+                ];
+                CSVExport.exportData(metrics.efficiency.filter(e => e.total_cost > 0), columns, 'cost_efficiency');
+            }
+
+            function exportPerformancePDF() {
+                const doc = PDFExport.createPDF();
+                let yPos = PDFExport.addHeader(doc, 'Performance Metrics Report', dateFilter);
+
+                // Add summary metrics
+                const totalExecs = metrics.successRates.reduce((sum, r) => sum + r.total_executions, 0);
+                const totalSuccessful = metrics.successRates.reduce((sum, r) => sum + r.successful_executions, 0);
+                const overallSuccessRate = (totalSuccessful / totalExecs) * 100;
+                const avgDuration = metrics.slowestSteps.reduce((sum, s) => sum + s.avg_duration, 0) / metrics.slowestSteps.length;
+
+                const summaryMetrics = [
+                    { label: 'Total Executions', value: totalExecs.toString() },
+                    { label: 'Successful', value: totalSuccessful.toString() },
+                    { label: 'Success Rate', value: `${overallSuccessRate.toFixed(1)}%` },
+                    { label: 'Avg Duration', value: `${avgDuration.toFixed(0)}ms` }
+                ];
+                yPos = PDFExport.addMetrics(doc, yPos, summaryMetrics);
+
+                // Add slowest steps chart if available
+                if (durationChartRef.current) {
+                    const canvas = durationChartRef.current.querySelector('canvas');
+                    if (canvas) {
+                        yPos = PDFExport.addChart(doc, yPos, 'Slowest Steps (Avg Duration)', canvas, 180, 80);
+                    }
+                }
+
+                // Add slowest steps table
+                const slowestColumns = [
+                    { label: 'Step Name', accessor: (item) => item.step_name },
+                    { label: 'Avg Duration (ms)', accessor: (item) => item.avg_duration.toFixed(2) },
+                    { label: 'Executions', accessor: (item) => item.executions.toString() }
+                ];
+                yPos = PDFExport.addTable(doc, yPos, 'Slowest Steps', slowestColumns, metrics.slowestSteps);
+
+                // Add success rates table
+                const successColumns = [
+                    { label: 'Workflow', accessor: (item) => item.workflow_name },
+                    { label: 'Total', accessor: (item) => item.total_executions.toString() },
+                    { label: 'Successful', accessor: (item) => item.successful_executions.toString() },
+                    { label: 'Failed', accessor: (item) => (item.total_executions - item.successful_executions).toString() },
+                    { label: 'Rate (%)', accessor: (item) => item.success_rate.toFixed(1) }
+                ];
+                yPos = PDFExport.addTable(doc, yPos, 'Success Rates by Workflow', successColumns, metrics.successRates);
+
+                // Add cost efficiency table
+                const efficiencyColumns = [
+                    { label: 'Workflow', accessor: (item) => item.workflow_name },
+                    { label: 'Executions', accessor: (item) => item.executions.toString() },
+                    { label: 'Successful', accessor: (item) => item.successful_executions.toString() },
+                    { label: 'Total Cost', accessor: (item) => `$${item.total_cost.toFixed(4)}` },
+                    { label: 'Cost/Success', accessor: (item) => `$${item.cost_per_success.toFixed(6)}` }
+                ];
+                yPos = PDFExport.addTable(doc, yPos, 'Cost Efficiency', efficiencyColumns, metrics.efficiency.filter(e => e.total_cost > 0));
+
+                PDFExport.exportPDF(doc, 'performance_metrics');
+            }
+
+            if (loading) {
+                return <div className="loading">Loading performance metrics...</div>;
+            }
+
+            if (error) {
+                return <div className="error">Error: {error}</div>;
+            }
+
+            const durationChartData = {
+                labels: metrics.slowestSteps.slice(0, 5).map(s => s.step_name),
+                datasets: [{
+                    label: 'Avg Duration (ms)',
+                    data: metrics.slowestSteps.slice(0, 5).map(s => s.avg_duration),
+                    backgroundColor: '#f59e0b'
+                }]
+            };
+
+            return (
+                <>
+                    <div className="export-section">
+                        <button className="export-button" onClick={exportSlowestSteps}>
+                            ⏱️ Export Slowest Steps
+                        </button>
+                        <button className="export-button" onClick={exportSuccessRates}>
+                            ✅ Export Success Rates
+                        </button>
+                        <button className="export-button" onClick={exportCostEfficiency}>
+                            💰 Export Cost Efficiency
+                        </button>
+                        <button className="export-button" onClick={exportPerformancePDF}>
+                            📄 Export to PDF
+                        </button>
+                    </div>
+
+                    <div className="chart-grid">
+                        <div className="chart-card">
+                            <h3 className="chart-title">Slowest Steps (Avg Duration)</h3>
+                            <div className="chart-container" ref={durationChartRef}>
+                                <ChartComponent
+                                    type="bar"
+                                    data={durationChartData}
+                                    options={{
+                                        indexAxis: 'y',
+                                        plugins: {
+                                            legend: {
+                                                display: false
+                                            }
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="table-card">
+                        <h3 className="chart-title">Success Rates by Workflow</h3>
+                        <table className="table">
+                            <thead>
+                                <tr>
+                                    <th>Workflow</th>
+                                    <th>Total Executions</th>
+                                    <th>Successful</th>
+                                    <th>Failed</th>
+                                    <th>Success Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {metrics.successRates.map((rate, i) => (
+                                    <tr key={i}>
+                                        <td>{rate.workflow_name}</td>
+                                        <td>{rate.total_executions}</td>
+                                        <td>{rate.successful}</td>
+                                        <td>{rate.failed}</td>
+                                        <td>
+                                            <span className={`badge ${rate.success_rate === 100 ? 'success' : rate.success_rate >= 80 ? 'warning' : 'danger'}`}>
+                                                {rate.success_rate.toFixed(1)}%
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="table-card">
+                        <h3 className="chart-title">Cost Efficiency</h3>
+                        <table className="table">
+                            <thead>
+                                <tr>
+                                    <th>Workflow</th>
+                                    <th>Total Executions</th>
+                                    <th>Successful</th>
+                                    <th>Total Cost</th>
+                                    <th>Cost per Success</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {metrics.efficiency.filter(e => e.total_cost > 0).map((eff, i) => (
+                                    <tr key={i}>
+                                        <td>{eff.workflow_name}</td>
+                                        <td>{eff.executions}</td>
+                                        <td>{eff.successful_executions}</td>
+                                        <td>${eff.total_cost.toFixed(4)}</td>
+                                        <td>${eff.cost_per_success.toFixed(6)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            );
+        }
+
+        // Breakdown Page
+        function BreakdownPage({ api, dateFilter }) {
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [groupBy, setGroupBy] = useState('workflow');
+            const [breakdown, setBreakdown] = useState(null);
+            const breakdownChartRef = useRef(null);
+
+            useEffect(() => {
+                loadData();
+            }, [groupBy, dateFilter]);
+
+            async function loadData() {
+                try {
+                    setLoading(true);
+                    setError(null);
+                    const startDate = dateFilter?.startDate;
+                    const endDate = dateFilter?.endDate;
+                    const data = await api.getCostBreakdown(groupBy, 20, startDate, endDate);
+                    setBreakdown(data);
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            }
+
+            function exportBreakdown() {
+                const columns = [
+                    { label: 'Name', accessor: (item) => item.name },
+                    { label: 'Total Cost', accessor: (item) => item.total_cost.toFixed(4) },
+                    { label: 'Total Tokens', accessor: (item) => item.total_tokens },
+                    { label: 'Executions', accessor: (item) => item.executions || item.uses || 0 },
+                    { label: 'Avg Cost', accessor: (item) => item.avg_cost?.toFixed(4) || item.avg_step_cost?.toFixed(4) || '0.0000' }
+                ];
+                CSVExport.exportData(breakdown.data, columns, `cost_breakdown_by_${groupBy}`);
+            }
+
+            function exportBreakdownPDF() {
+                const doc = PDFExport.createPDF();
+                const title = `Cost Breakdown by ${groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}`;
+                let yPos = PDFExport.addHeader(doc, title, dateFilter);
+
+                // Add summary metrics
+                const totalCost = breakdown.data.reduce((sum, item) => sum + item.total_cost, 0);
+                const totalTokens = breakdown.data.reduce((sum, item) => sum + item.total_tokens, 0);
+                const metrics = [
+                    { label: 'Total Items', value: breakdown.data.length.toString() },
+                    { label: 'Total Cost', value: `$${totalCost.toFixed(4)}` },
+                    { label: 'Total Tokens', value: totalTokens.toLocaleString() },
+                    { label: 'Avg Cost', value: `$${(totalCost / breakdown.data.length).toFixed(6)}` }
+                ];
+                yPos = PDFExport.addMetrics(doc, yPos, metrics);
+
+                // Add chart if available
+                if (breakdownChartRef.current) {
+                    const canvas = breakdownChartRef.current.querySelector('canvas');
+                    if (canvas) {
+                        yPos = PDFExport.addChart(doc, yPos, `Top 10 by ${groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}`, canvas, 180, 100);
+                    }
+                }
+
+                // Add detailed breakdown table
+                const columns = [
+                    { label: 'Name', accessor: (item) => item.name },
+                    { label: 'Total Cost', accessor: (item) => `$${item.total_cost.toFixed(4)}` },
+                    { label: 'Tokens', accessor: (item) => item.total_tokens.toLocaleString() },
+                    { label: groupBy === 'workflow' ? 'Executions' : 'Uses', accessor: (item) => (item.executions || item.uses || 0).toString() },
+                    { label: 'Avg Cost', accessor: (item) => `$${(item.avg_step_cost || item.avg_cost || 0).toFixed(6)}` }
+                ];
+                yPos = PDFExport.addTable(doc, yPos, 'Detailed Breakdown', columns, breakdown.data);
+
+                PDFExport.exportPDF(doc, `breakdown_by_${groupBy}`);
+            }
+
+            if (loading && !breakdown) {
+                return <div className="loading">Loading breakdown data...</div>;
+            }
+
+            if (error) {
+                return <div className="error">Error: {error}</div>;
+            }
+
+            const chartData = {
+                labels: breakdown.data.slice(0, 10).map(item => item.name),
+                datasets: [{
+                    label: 'Total Cost ($)',
+                    data: breakdown.data.slice(0, 10).map(item => item.total_cost),
+                    backgroundColor: '#3b82f6'
+                }]
+            };
+
+            return (
+                <>
+                    <div className="config-panel">
+                        <div className="form-group">
+                            <label className="form-label">Group By</label>
+                            <select
+                                className="form-input"
+                                value={groupBy}
+                                onChange={(e) => setGroupBy(e.target.value)}
+                            >
+                                <option value="workflow">Workflow</option>
+                                <option value="model">Model</option>
+                                <option value="step">Step</option>
+                            </select>
+                        </div>
+                        <button className="export-button" onClick={exportBreakdown}>
+                            📥 Export to CSV
+                        </button>
+                        <button className="export-button" onClick={exportBreakdownPDF}>
+                            📄 Export to PDF
+                        </button>
+                    </div>
+
+                    <div className="chart-card">
+                        <h3 className="chart-title">Top 10 by {groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}</h3>
+                        <div className="chart-container" ref={breakdownChartRef}>
+                            <ChartComponent
+                                type="bar"
+                                data={chartData}
+                                options={{
+                                    plugins: {
+                                        legend: {
+                                            display: false
+                                        }
+                                    },
+                                    scales: {
+                                        y: {
+                                            beginAtZero: true,
+                                            ticks: {
+                                                callback: function(value) {
+                                                    return '$' + value.toFixed(2);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="table-card">
+                        <h3 className="chart-title">Detailed Breakdown</h3>
+                        <table className="table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Total Cost</th>
+                                    <th>Total Tokens</th>
+                                    {groupBy === 'workflow' && <th>Executions</th>}
+                                    {groupBy === 'model' && <th>Uses</th>}
+                                    <th>Avg Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {breakdown.data.map((item, i) => (
+                                    <tr key={i}>
+                                        <td>{item.name}</td>
+                                        <td>${item.total_cost.toFixed(4)}</td>
+                                        <td>{item.total_tokens.toLocaleString()}</td>
+                                        {groupBy === 'workflow' && <td>{item.executions}</td>}
+                                        {groupBy === 'model' && <td>{item.uses}</td>}
+                                        <td>${(item.avg_step_cost || item.avg_cost || 0).toFixed(6)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            );
+        }
+
+        // Settings Page
+        function SettingsPage({ config, onSave }) {
+            const [apiKey, setApiKey] = useState(config.apiKey);
+            const [baseURL, setBaseURL] = useState(config.baseURL);
+
+            function handleSave() {
+                onSave({ apiKey, baseURL });
+            }
+
+            return (
+                <div className="config-panel">
+                    <h3 className="chart-title">Dashboard Configuration</h3>
+                    <div className="form-group">
+                        <label className="form-label">API Base URL</label>
+                        <input
+                            type="text"
+                            className="form-input"
+                            value={baseURL}
+                            onChange={(e) => setBaseURL(e.target.value)}
+                            placeholder="http://localhost:3000"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">API Key</label>
+                        <input
+                            type="password"
+                            className="form-input"
+                            value={apiKey}
+                            onChange={(e) => setApiKey(e.target.value)}
+                            placeholder="mcp_live_..."
+                        />
+                    </div>
+                    <button className="button" onClick={handleSave}>
+                        Save Configuration
+                    </button>
+                </div>
+            );
+        }
+
+        // Main App
+        function App() {
+            const [page, setPage] = useState('overview');
+            const [config, setConfig] = useState(() => {
+                const saved = localStorage.getItem('mcp-analytics-config');
+                return saved ? JSON.parse(saved) : {
+                    baseURL: 'http://localhost:3000',
+                    apiKey: 'mcp_live_6a6b77ebe7b12be391782bde35a03ecb0a129fe23a28a48e337224ac781b7696'
+                };
+            });
+
+            // Initialize with last 30 days by default
+            const [dateFilter, setDateFilter] = useState(() => {
+                const end = new Date();
+                const start = new Date();
+                start.setDate(start.getDate() - 30);
+                return {
+                    preset: '30d',
+                    startDate: start.toISOString(),
+                    endDate: end.toISOString(),
+                    label: 'Last 30 Days'
+                };
+            });
+
+            const api = new AnalyticsAPI(config.baseURL, config.apiKey);
+
+            function handleSaveConfig(newConfig) {
+                setConfig(newConfig);
+                localStorage.setItem('mcp-analytics-config', JSON.stringify(newConfig));
+                alert('Configuration saved! Reload the page to apply changes.');
+            }
+
+            function handleFilterChange(newFilter) {
+                setDateFilter(newFilter);
+            }
+
+            return (
+                <div className="dashboard">
+                    <div className="header">
+                        <h1>MCP Connect Analytics</h1>
+                        <p>Comprehensive LLM cost tracking and performance metrics</p>
+                        <div className="nav">
+                            <button
+                                className={`nav-button ${page === 'overview' ? 'active' : ''}`}
+                                onClick={() => setPage('overview')}
+                            >
+                                Overview
+                            </button>
+                            <button
+                                className={`nav-button ${page === 'breakdown' ? 'active' : ''}`}
+                                onClick={() => setPage('breakdown')}
+                            >
+                                Cost Breakdown
+                            </button>
+                            <button
+                                className={`nav-button ${page === 'performance' ? 'active' : ''}`}
+                                onClick={() => setPage('performance')}
+                            >
+                                Performance
+                            </button>
+                            <button
+                                className={`nav-button ${page === 'settings' ? 'active' : ''}`}
+                                onClick={() => setPage('settings')}
+                            >
+                                Settings
+                            </button>
+                        </div>
+                    </div>
+
+                    {page !== 'settings' && (
+                        <DateRangeFilter
+                            onFilterChange={handleFilterChange}
+                            currentFilter={dateFilter}
+                        />
+                    )}
+
+                    {page === 'overview' && <OverviewPage api={api} dateFilter={dateFilter} />}
+                    {page === 'breakdown' && <BreakdownPage api={api} dateFilter={dateFilter} />}
+                    {page === 'performance' && <PerformancePage api={api} dateFilter={dateFilter} />}
+                    {page === 'settings' && <SettingsPage config={config} onSave={handleSaveConfig} />}
+                </div>
+            );
+        }
+
+        // Render
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

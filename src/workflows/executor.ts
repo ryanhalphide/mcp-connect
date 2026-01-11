@@ -9,6 +9,7 @@ import { readResource } from '../mcp/client.js';
 import { getPrompt } from '../mcp/client.js';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { createChildLogger } from '../observability/logger.js';
+import { stepCostTracker, type StepCostData } from './stepCostTracker.js';
 
 const logger = createChildLogger({ module: 'workflow-executor' });
 
@@ -22,8 +23,10 @@ export class WorkflowExecutor {
   async executeStep(
     step: WorkflowStep,
     context: WorkflowContext
-  ): Promise<{ success: boolean; output?: unknown; error?: string }> {
+  ): Promise<{ success: boolean; output?: unknown; error?: string; costData?: StepCostData }> {
     logger.info({ stepName: step.name, stepType: step.type }, 'Executing workflow step');
+
+    const startTime = Date.now();
 
     try {
       // Interpolate step configuration
@@ -52,12 +55,17 @@ export class WorkflowExecutor {
           throw new Error(`Unknown step type: ${step.type}`);
       }
 
-      logger.info({ stepName: step.name }, 'Step completed successfully');
-      return { success: true, output };
+      // Track step cost
+      const durationMs = Date.now() - startTime;
+      const costData = stepCostTracker.trackStepCost(step.name, step.type, output, durationMs);
+
+      logger.info({ stepName: step.name, ...costData }, 'Step completed successfully');
+      return { success: true, output, costData };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const durationMs = Date.now() - startTime;
       logger.error({ stepName: step.name, error: errorMessage }, 'Step execution failed');
-      return { success: false, error: errorMessage };
+      return { success: false, error: errorMessage, costData: { tokensUsed: 0, costCredits: 0, durationMs } };
     }
   }
 
@@ -227,17 +235,23 @@ export class WorkflowExecutor {
     step: WorkflowStep,
     context: WorkflowContext,
     retryConfig?: RetryConfig
-  ): Promise<{ success: boolean; output?: unknown; error?: string; retries: number }> {
+  ): Promise<{ success: boolean; output?: unknown; error?: string; retries: number; costData?: StepCostData }> {
     const config = retryConfig || step.retryConfig;
     const maxAttempts = config?.maxAttempts || 1;
     const backoffMs = config?.backoffMs || 1000;
     const backoffMultiplier = config?.backoffMultiplier || 2;
 
     let lastError: string | undefined;
+    let lastCostData: StepCostData | undefined;
     let currentDelay = backoffMs;
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const result = await this.executeStep(step, context);
+
+      // Track cost data from each attempt
+      if (result.costData) {
+        lastCostData = result.costData;
+      }
 
       if (result.success) {
         return { ...result, retries: attempt };
@@ -260,6 +274,7 @@ export class WorkflowExecutor {
       success: false,
       error: lastError || 'Unknown error',
       retries: maxAttempts - 1,
+      costData: lastCostData,
     };
   }
 
