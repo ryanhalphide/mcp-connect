@@ -1,0 +1,388 @@
+/**
+ * Mobile-First Styles for Workflow Management
+ */
+
+/* Mobile Tab Bar */
+.mobile-tab-bar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-secondary, #12121a);
+  border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  padding: 8px;
+  z-index: 1000;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.mobile-tab-bar .tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+  color: var(--text-secondary, #a1a1aa);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.2s;
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-tab-bar .tab-item::before {
+  content: attr(data-icon);
+  font-size: 20px;
+}
+
+.mobile-tab-bar .tab-item.active {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-primary, #6366f1);
+}
+
+.mobile-tab-bar .tab-item:active {
+  transform: scale(0.95);
+}
+
+/* Workflow Cards - Mobile Optimized */
+.workflow-card {
+  position: relative;
+  min-height: 120px;
+  touch-action: pan-y;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.workflow-card:active {
+  transform: scale(0.98);
+}
+
+/* Swipe Actions */
+.swipe-actions {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  z-index: -1;
+}
+
+.swipe-actions-left {
+  right: 100%;
+  background: linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.1));
+}
+
+.swipe-actions-right {
+  left: 100%;
+  background: linear-gradient(270deg, transparent, rgba(34, 197, 94, 0.1));
+}
+
+.swipe-action-btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.swipe-action-btn.execute {
+  background: var(--success, #22c55e);
+  color: white;
+}
+
+.swipe-action-btn.favorite {
+  background: var(--warning, #f59e0b);
+  color: white;
+}
+
+.swipe-action-btn.archive {
+  background: var(--info, #3b82f6);
+  color: white;
+}
+
+.swipe-action-btn.delete {
+  background: var(--danger, #ef4444);
+  color: white;
+}
+
+.swipe-action-btn:active {
+  transform: scale(0.95);
+}
+
+/* Mobile Navigation Drawer */
+.mobile-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  background: var(--bg-secondary, #12121a);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  z-index: 2000;
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.3);
+  overflow-y: auto;
+}
+
+.mobile-drawer.active {
+  transform: translateX(0);
+}
+
+.mobile-drawer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 1999;
+}
+
+.mobile-drawer-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Mobile Quick Actions */
+.mobile-quick-actions {
+  position: fixed;
+  bottom: 80px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 100;
+}
+
+.quick-action-btn {
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent-primary, #6366f1);
+  color: white;
+  font-size: 24px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quick-action-btn:active {
+  transform: scale(0.9);
+}
+
+.quick-action-btn.secondary {
+  width: 48px;
+  height: 48px;
+  background: var(--bg-tertiary, #1a1a24);
+  font-size: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Mobile Cards Grid */
+.mobile-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 16px;
+}
+
+/* Touch-Friendly Buttons */
+.mobile-btn {
+  min-height: 44px;
+  padding: 12px 20px;
+  font-size: 16px;
+  border-radius: 10px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-btn:active {
+  transform: scale(0.96);
+}
+
+/* Mobile Form Inputs */
+.mobile-input {
+  min-height: 44px;
+  padding: 12px 16px;
+  font-size: 16px;
+  border-radius: 10px;
+}
+
+/* Mobile Modal */
+.mobile-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-primary, #0a0a0f);
+  z-index: 3000;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-modal.active {
+  transform: translateY(0);
+}
+
+.mobile-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: var(--bg-secondary, #12121a);
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.mobile-modal-content {
+  flex: 1;
+  padding: 16px;
+}
+
+/* Pull to Refresh */
+.pull-to-refresh {
+  position: relative;
+  padding-top: 60px;
+  margin-top: -60px;
+}
+
+.pull-to-refresh-indicator {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.pull-to-refresh.pulling .pull-to-refresh-indicator {
+  opacity: 1;
+}
+
+/* Mobile Breakpoints */
+@media (max-width: 768px) {
+  .mobile-tab-bar {
+    display: flex;
+  }
+
+  /* Hide desktop sidebar on mobile */
+  .sidebar {
+    transform: translateX(-100%);
+  }
+
+  .sidebar.active {
+    transform: translateX(0);
+    position: fixed;
+    z-index: 2000;
+  }
+
+  /* Adjust main content for mobile tab bar */
+  .main-content {
+    padding-bottom: 80px;
+  }
+
+  /* Stack cards vertically on mobile */
+  .card-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Full-width modals on mobile */
+  .modal-content {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  /* Touch-friendly spacing */
+  .btn-group .btn {
+    min-height: 44px;
+  }
+
+  /* Larger touch targets */
+  .icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-cards-grid {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .mobile-btn {
+    font-size: 15px;
+  }
+
+  .quick-action-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+
+  .quick-action-btn.secondary {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+}
+
+/* Landscape Mode Adjustments */
+@media (max-width: 896px) and (orientation: landscape) {
+  .mobile-tab-bar {
+    display: none;
+  }
+
+  .mobile-quick-actions {
+    bottom: 16px;
+  }
+}
+
+/* Safe Area Insets for Notched Devices */
+@supports (padding: max(0px)) {
+  .mobile-tab-bar {
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  .mobile-drawer {
+    padding-top: max(16px, env(safe-area-inset-top));
+  }
+
+  .mobile-modal {
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .workflow-card,
+  .mobile-drawer,
+  .mobile-modal,
+  .swipe-action-btn {
+    transition: none;
+  }
+}

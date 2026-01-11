@@ -6,6 +6,8 @@
   <title>MCP Connect - Enterprise MCP Server Management</title>
   <meta name="description" content="Unified control plane for Model Context Protocol servers">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>&#x26A1;</text></svg>">
+  <link rel="stylesheet" href="/css/mobile.css">
+  <link rel="stylesheet" href="/css/animations.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     :root {
@@ -5372,6 +5374,193 @@ Authorization: Bearer YOUR_API_KEY</div>
 
     // Auto-refresh
     setInterval(fetchHealth, 30000);
+
+    // Mobile features initialization
+    function initMobileFeatures() {
+      // Register service worker for push notifications
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => {
+            console.log('Service Worker registered:', registration);
+          })
+          .catch(error => {
+            console.error('Service Worker registration failed:', error);
+          });
+      }
+
+      // Request notification permission
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+          console.log('Notification permission:', permission);
+        });
+      }
+
+      // Add swipe gesture support for workflow cards
+      const workflowCards = document.querySelectorAll('.workflow-card');
+      workflowCards.forEach(card => {
+        let startX = 0;
+        let startY = 0;
+        let distX = 0;
+        let distY = 0;
+
+        card.addEventListener('touchstart', (e) => {
+          const touch = e.changedTouches[0];
+          startX = touch.pageX;
+          startY = touch.pageY;
+          card.style.transition = 'none';
+        }, { passive: true });
+
+        card.addEventListener('touchmove', (e) => {
+          const touch = e.changedTouches[0];
+          distX = touch.pageX - startX;
+          distY = touch.pageY - startY;
+
+          if (Math.abs(distX) > 10 && Math.abs(distX) > Math.abs(distY)) {
+            card.style.transform = `translateX(${distX}px)`;
+            card.style.opacity = 1 - Math.abs(distX) / 200;
+          }
+        }, { passive: true });
+
+        card.addEventListener('touchend', (e) => {
+          card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+          card.style.transform = 'translateX(0)';
+          card.style.opacity = '1';
+
+          const threshold = 50;
+          if (Math.abs(distX) >= threshold && Math.abs(distY) <= 100) {
+            if (distX < 0) {
+              // Swipe left - show delete/archive
+              showWorkflowActions(card, 'left');
+            } else {
+              // Swipe right - show execute/favorite
+              showWorkflowActions(card, 'right');
+            }
+          }
+        }, { passive: true });
+      });
+
+      // Add mobile tab bar
+      addMobileTabBar();
+    }
+
+    function showWorkflowActions(card, direction) {
+      const workflowId = card.dataset.workflowId;
+      const actions = document.createElement('div');
+      actions.className = `swipe-actions swipe-actions-${direction}`;
+      actions.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        ${direction === 'left' ? 'right: 20px;' : 'left: 20px;'}
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 12px;
+        display: flex;
+        gap: 8px;
+        z-index: 1000;
+        animation: slideInUp 0.3s ease-out;
+      `;
+
+      if (direction === 'left') {
+        actions.innerHTML = `
+          <button class="swipe-action-btn archive" onclick="archiveWorkflow('${workflowId}')">
+            📦 Archive
+          </button>
+          <button class="swipe-action-btn delete" onclick="deleteWorkflow('${workflowId}')">
+            🗑️ Delete
+          </button>
+        `;
+      } else {
+        actions.innerHTML = `
+          <button class="swipe-action-btn execute" onclick="executeWorkflow('${workflowId}')">
+            ▶️ Execute
+          </button>
+          <button class="swipe-action-btn favorite" onclick="favoriteWorkflow('${workflowId}')">
+            ⭐ Favorite
+          </button>
+        `;
+      }
+
+      document.body.appendChild(actions);
+      setTimeout(() => actions.remove(), 3000);
+    }
+
+    function addMobileTabBar() {
+      const tabBar = document.createElement('nav');
+      tabBar.className = 'mobile-tab-bar';
+      tabBar.innerHTML = `
+        <a class="tab-item active" data-icon="🏠" onclick="showPage('dashboard')">Dashboard</a>
+        <a class="tab-item" data-icon="🔧" onclick="showPage('tools')">Tools</a>
+        <a class="tab-item" data-icon="📊" onclick="window.location.href='/analytics.html'">Analytics</a>
+        <a class="tab-item" data-icon="⚙️" onclick="showPage('settings')">Settings</a>
+      `;
+      document.body.appendChild(tabBar);
+
+      // Update active tab on page change
+      const originalShowPage = window.showPage;
+      window.showPage = function(pageId) {
+        originalShowPage(pageId);
+        document.querySelectorAll('.mobile-tab-bar .tab-item').forEach(item => {
+          item.classList.remove('active');
+        });
+        const activeTab = document.querySelector(`.mobile-tab-bar .tab-item[onclick*="${pageId}"]`);
+        if (activeTab) activeTab.classList.add('active');
+      };
+    }
+
+    function notifyWorkflowComplete(execution) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Workflow Complete', {
+          body: `${execution.workflowName} finished successfully`,
+          icon: '/favicon.ico',
+          tag: 'workflow-complete',
+          data: { executionId: execution.id },
+          actions: [
+            { action: 'view', title: 'View Results' },
+            { action: 'dismiss', title: 'Dismiss' }
+          ]
+        });
+      }
+    }
+
+    // Placeholder functions for swipe actions
+    window.archiveWorkflow = function(id) {
+      console.log('Archive workflow:', id);
+      alert(`Archive workflow ${id}`);
+    };
+
+    window.deleteWorkflow = function(id) {
+      if (confirm('Are you sure you want to delete this workflow?')) {
+        console.log('Delete workflow:', id);
+        alert(`Delete workflow ${id}`);
+      }
+    };
+
+    window.executeWorkflow = function(id) {
+      console.log('Execute workflow:', id);
+      alert(`Execute workflow ${id}`);
+    };
+
+    window.favoriteWorkflow = function(id) {
+      console.log('Favorite workflow:', id);
+      alert(`Favorited workflow ${id}`);
+    };
+
+    // Initialize mobile features
+    if (window.innerWidth <= 768) {
+      initMobileFeatures();
+    }
+
+    // Re-initialize on window resize
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (window.innerWidth <= 768 && !document.querySelector('.mobile-tab-bar')) {
+          initMobileFeatures();
+        }
+      }, 250);
+    });
   </script>
 </body>
 </html>

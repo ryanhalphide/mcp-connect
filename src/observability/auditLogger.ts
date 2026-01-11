@@ -31,7 +31,15 @@ export type AuditAction =
   | 'tenant:update'
   | 'tenant:delete'
   | 'cache:invalidate'
-  | 'search:query';
+  | 'search:query'
+  | 'budget:create'
+  | 'budget:update'
+  | 'budget:delete'
+  | 'budget:exceeded'
+  | 'security:key_detected'
+  | 'security:pattern_create'
+  | 'security:pattern_update'
+  | 'security:pattern_delete';
 
 export type AuditResourceType =
   | 'tool'
@@ -43,7 +51,9 @@ export type AuditResourceType =
   | 'role'
   | 'tenant'
   | 'cache'
-  | 'search';
+  | 'search'
+  | 'budget'
+  | 'security';
 
 export type AuditStatus = 'success' | 'failure';
 

@@ -84,6 +84,7 @@ export class StepCostTracker {
   /**
    * Extract token usage from tool result
    * Different tools return token usage in different formats
+   * Supports both OpenAI and Anthropic response formats
    */
   extractTokenUsage(result: unknown): {
     inputTokens: number;
@@ -94,24 +95,36 @@ export class StepCostTracker {
     if (typeof result === 'object' && result !== null) {
       const obj = result as Record<string, unknown>;
 
-      // Check for OpenAI-style usage object
+      // Check for usage object
       if (obj.usage && typeof obj.usage === 'object') {
         const usage = obj.usage as Record<string, unknown>;
-        return {
-          inputTokens: (usage.prompt_tokens as number) || 0,
-          outputTokens: (usage.completion_tokens as number) || 0,
-          model: (obj.model as string) || undefined,
-        };
-      }
 
-      // Check for Claude/Anthropic-style usage
-      if (obj.usage && typeof obj.usage === 'object') {
-        const usage = obj.usage as Record<string, unknown>;
-        return {
-          inputTokens: (usage.input_tokens as number) || 0,
-          outputTokens: (usage.output_tokens as number) || 0,
-          model: (obj.model as string) || undefined,
-        };
+        // OpenAI format: { prompt_tokens, completion_tokens }
+        if ('prompt_tokens' in usage || 'completion_tokens' in usage) {
+          return {
+            inputTokens: (usage.prompt_tokens as number) || 0,
+            outputTokens: (usage.completion_tokens as number) || 0,
+            model: (obj.model as string) || undefined,
+          };
+        }
+
+        // Anthropic format: { input_tokens, output_tokens }
+        if ('input_tokens' in usage || 'output_tokens' in usage) {
+          return {
+            inputTokens: (usage.input_tokens as number) || 0,
+            outputTokens: (usage.output_tokens as number) || 0,
+            model: (obj.model as string) || undefined,
+          };
+        }
+
+        // Generic format: { inputTokens, outputTokens }
+        if ('inputTokens' in usage || 'outputTokens' in usage) {
+          return {
+            inputTokens: (usage.inputTokens as number) || 0,
+            outputTokens: (usage.outputTokens as number) || 0,
+            model: (obj.model as string) || undefined,
+          };
+        }
       }
 
       // Check for direct token counts

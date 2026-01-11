@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workflow Builder - MCP Connect</title>
+  <link rel="stylesheet" href="/css/workflows.css">
+  <link rel="stylesheet" href="/css/animations.css">
+</head>
+<body>
+  <div class="workflow-app">
+    <!-- Header -->
+    <header class="workflow-header">
+      <div class="header-left">
+        <h1>Workflow Builder</h1>
+        <span class="workflow-name" id="workflowName">Untitled Workflow</span>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" id="btnNew">New</button>
+        <button class="btn btn-secondary" id="btnLoad">Load</button>
+        <button class="btn btn-primary" id="btnSave">Save</button>
+        <button class="btn btn-secondary" id="btnShare">Share</button>
+        <button class="btn btn-secondary" id="btnExport">Export</button>
+        <button class="btn btn-success" id="btnExecute">Execute</button>
+      </div>
+    </header>
+
+    <div class="workflow-container">
+      <!-- Node Palette -->
+      <aside class="node-palette">
+        <h3>Node Types</h3>
+        <div class="palette-section">
+          <h4>Basic</h4>
+          <div class="palette-node" data-type="tool" draggable="true">
+            <span class="node-icon">🔧</span>
+            <span>Tool Call</span>
+          </div>
+          <div class="palette-node" data-type="prompt" draggable="true">
+            <span class="node-icon">💬</span>
+            <span>Prompt</span>
+          </div>
+          <div class="palette-node" data-type="resource" draggable="true">
+            <span class="node-icon">📄</span>
+            <span>Resource</span>
+          </div>
+        </div>
+        <div class="palette-section">
+          <h4>Control Flow</h4>
+          <div class="palette-node" data-type="parallel" draggable="true">
+            <span class="node-icon">⚡</span>
+            <span>Parallel</span>
+          </div>
+          <div class="palette-node" data-type="condition" draggable="true">
+            <span class="node-icon">🔀</span>
+            <span>Condition</span>
+          </div>
+        </div>
+        <div class="palette-section">
+          <h4>Sampling</h4>
+          <div class="palette-node" data-type="sampling" draggable="true">
+            <span class="node-icon">🎲</span>
+            <span>Sampling</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Canvas Area -->
+      <main class="canvas-container">
+        <div class="canvas-toolbar">
+          <button class="tool-btn" id="btnZoomIn" title="Zoom In">+</button>
+          <button class="tool-btn" id="btnZoomOut" title="Zoom Out">-</button>
+          <button class="tool-btn" id="btnZoomReset" title="Reset Zoom">100%</button>
+          <button class="tool-btn" id="btnPan" title="Pan Mode">✋</button>
+          <button class="tool-btn" id="btnDelete" title="Delete Selected">🗑️</button>
+        </div>
+        <svg id="canvas" class="workflow-canvas">
+          <defs>
+            <filter id="shadow">
+              <feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="0.3"/>
+            </filter>
+            <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+              <polygon points="0 0, 10 3, 0 6" fill="#6366f1"/>
+            </marker>
+          </defs>
+          <g id="connections"></g>
+          <g id="nodes"></g>
+        </svg>
+      </main>
+
+      <!-- Properties Panel -->
+      <aside class="properties-panel" id="propertiesPanel">
+        <h3>Properties</h3>
+        <div class="properties-content" id="propertiesContent">
+          <div class="empty-state">
+            <p>Select a node to edit its properties</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Execution Monitor -->
+    <div class="execution-monitor" id="executionMonitor" style="display: none;">
+      <div class="monitor-header">
+        <h3>Execution Progress</h3>
+        <button class="btn-close" id="btnCloseMonitor">×</button>
+      </div>
+      <div class="monitor-content" id="monitorContent">
+        <div class="execution-status">
+          <div class="status-item">
+            <span class="status-label">Status:</span>
+            <span class="status-value" id="executionStatus">Running</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Progress:</span>
+            <span class="status-value" id="executionProgress">0%</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Cost:</span>
+            <span class="status-value" id="executionCost">$0.0000</span>
+          </div>
+        </div>
+        <div class="execution-steps" id="executionSteps"></div>
+      </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div class="modal" id="shareModal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Share Workflow</h3>
+          <button class="btn-close" id="btnCloseShare">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Share URL</label>
+            <div class="input-group">
+              <input type="text" id="shareUrl" readonly class="form-input">
+              <button class="btn btn-primary" id="btnCopyUrl">Copy</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>JSON Export</label>
+            <textarea id="shareJson" readonly class="form-textarea" rows="8"></textarea>
+            <button class="btn btn-secondary" id="btnDownloadJson">Download JSON</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/workflow-canvas.js"></script>
+  <script type="module" src="/js/sse-client.js"></script>
+  <script type="module">
+    import { WorkflowCanvas } from '/js/workflow-canvas.js';
+    import { SSEClient } from '/js/sse-client.js';
+
+    // Initialize the workflow builder
+    const canvas = new WorkflowCanvas('canvas');
+    const sseClient = new SSEClient();
+
+    // Button handlers
+    document.getElementById('btnNew').addEventListener('click', () => {
+      if (confirm('Create a new workflow? Unsaved changes will be lost.')) {
+        canvas.clear();
+        document.getElementById('workflowName').textContent = 'Untitled Workflow';
+      }
+    });
+
+    document.getElementById('btnSave').addEventListener('click', () => {
+      const workflow = canvas.exportWorkflow();
+      const name = prompt('Enter workflow name:', document.getElementById('workflowName').textContent);
+      if (name) {
+        workflow.name = name;
+        localStorage.setItem(`workflow_${name}`, JSON.stringify(workflow));
+        document.getElementById('workflowName').textContent = name;
+        alert('Workflow saved successfully!');
+      }
+    });
+
+    document.getElementById('btnLoad').addEventListener('click', () => {
+      const name = prompt('Enter workflow name to load:');
+      if (name) {
+        const saved = localStorage.getItem(`workflow_${name}`);
+        if (saved) {
+          canvas.loadWorkflow(JSON.parse(saved));
+          document.getElementById('workflowName').textContent = name;
+          alert('Workflow loaded successfully!');
+        } else {
+          alert('Workflow not found!');
+        }
+      }
+    });
+
+    document.getElementById('btnShare').addEventListener('click', () => {
+      const workflow = canvas.exportWorkflow();
+      const encoded = btoa(JSON.stringify(workflow));
+      const url = `${window.location.origin}/workflows.html?workflow=${encoded}`;
+
+      document.getElementById('shareUrl').value = url;
+      document.getElementById('shareJson').value = JSON.stringify(workflow, null, 2);
+      document.getElementById('shareModal').style.display = 'flex';
+    });
+
+    document.getElementById('btnExport').addEventListener('click', () => {
+      const workflow = canvas.exportWorkflow();
+
+      // JSON export
+      const json = JSON.stringify(workflow, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${workflow.name || 'workflow'}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('btnExecute').addEventListener('click', async () => {
+      const workflow = canvas.exportWorkflow();
+
+      // Validate workflow
+      if (!workflow.nodes || workflow.nodes.length === 0) {
+        alert('Workflow is empty! Add some nodes first.');
+        return;
+      }
+
+      // Show execution monitor
+      const monitor = document.getElementById('executionMonitor');
+      monitor.style.display = 'block';
+      document.getElementById('executionStatus').textContent = 'Running';
+      document.getElementById('executionProgress').textContent = '0%';
+      document.getElementById('executionCost').textContent = '$0.0000';
+      document.getElementById('executionSteps').innerHTML = '';
+
+      try {
+        // Execute workflow via API
+        const response = await fetch('/api/workflows/execute', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('apiKey') || 'mcp_live_6a6b77ebe7b12be391782bde35a03ecb0a129fe23a28a48e337224ac781b7696'}`
+          },
+          body: JSON.stringify(workflow)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          const executionId = result.data.executionId;
+
+          // Subscribe to SSE events
+          sseClient.subscribe(executionId, (event) => {
+            updateExecutionMonitor(event);
+          });
+        } else {
+          throw new Error(result.error || 'Execution failed');
+        }
+      } catch (error) {
+        alert(`Execution error: ${error.message}`);
+        document.getElementById('executionStatus').textContent = 'Failed';
+      }
+    });
+
+    function updateExecutionMonitor(event) {
+      const stepsContainer = document.getElementById('executionSteps');
+
+      if (event.type === 'workflow.step.started') {
+        const stepDiv = document.createElement('div');
+        stepDiv.className = 'step-item running';
+        stepDiv.id = `step-${event.data.stepId}`;
+        stepDiv.innerHTML = `
+          <span class="step-icon">⏳</span>
+          <span class="step-name">${event.data.stepName}</span>
+          <span class="step-status">Running...</span>
+        `;
+        stepsContainer.appendChild(stepDiv);
+
+        // Highlight node on canvas
+        canvas.highlightNode(event.data.nodeId, 'running');
+      } else if (event.type === 'workflow.step.completed') {
+        const stepDiv = document.getElementById(`step-${event.data.stepId}`);
+        if (stepDiv) {
+          stepDiv.className = 'step-item completed';
+          stepDiv.querySelector('.step-icon').textContent = '✅';
+          stepDiv.querySelector('.step-status').textContent = `Completed (${event.data.duration}ms)`;
+        }
+
+        // Update cost
+        const currentCost = parseFloat(document.getElementById('executionCost').textContent.replace('$', ''));
+        document.getElementById('executionCost').textContent = `$${(currentCost + event.data.cost).toFixed(4)}`;
+
+        // Update progress
+        const totalSteps = event.data.totalSteps || 1;
+        const completedSteps = event.data.completedSteps || 0;
+        document.getElementById('executionProgress').textContent = `${Math.round((completedSteps / totalSteps) * 100)}%`;
+
+        // Highlight node
+        canvas.highlightNode(event.data.nodeId, 'completed');
+      } else if (event.type === 'workflow.step.failed') {
+        const stepDiv = document.getElementById(`step-${event.data.stepId}`);
+        if (stepDiv) {
+          stepDiv.className = 'step-item failed';
+          stepDiv.querySelector('.step-icon').textContent = '❌';
+          stepDiv.querySelector('.step-status').textContent = `Failed: ${event.data.error}`;
+        }
+
+        document.getElementById('executionStatus').textContent = 'Failed';
+        canvas.highlightNode(event.data.nodeId, 'failed');
+      } else if (event.type === 'workflow.completed') {
+        document.getElementById('executionStatus').textContent = 'Completed';
+      }
+    }
+
+    // Close buttons
+    document.getElementById('btnCloseMonitor').addEventListener('click', () => {
+      document.getElementById('executionMonitor').style.display = 'none';
+      canvas.clearHighlights();
+    });
+
+    document.getElementById('btnCloseShare').addEventListener('click', () => {
+      document.getElementById('shareModal').style.display = 'none';
+    });
+
+    document.getElementById('btnCopyUrl').addEventListener('click', () => {
+      const input = document.getElementById('shareUrl');
+      input.select();
+      document.execCommand('copy');
+      alert('URL copied to clipboard!');
+    });
+
+    document.getElementById('btnDownloadJson').addEventListener('click', () => {
+      const json = document.getElementById('shareJson').value;
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'workflow.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Toolbar buttons
+    document.getElementById('btnZoomIn').addEventListener('click', () => canvas.zoomIn());
+    document.getElementById('btnZoomOut').addEventListener('click', () => canvas.zoomOut());
+    document.getElementById('btnZoomReset').addEventListener('click', () => canvas.zoomReset());
+    document.getElementById('btnPan').addEventListener('click', () => canvas.togglePanMode());
+    document.getElementById('btnDelete').addEventListener('click', () => canvas.deleteSelected());
+
+    // Load workflow from URL if present
+    const urlParams = new URLSearchParams(window.location.search);
+    const workflowParam = urlParams.get('workflow');
+    if (workflowParam) {
+      try {
+        const workflow = JSON.parse(atob(workflowParam));
+        canvas.loadWorkflow(workflow);
+        document.getElementById('workflowName').textContent = workflow.name || 'Shared Workflow';
+      } catch (error) {
+        console.error('Failed to load workflow from URL:', error);
+      }
+    }
+  </script>
+</body>
+</html>

@@ -31,7 +31,12 @@ export type AuditAction =
   | 'workflow.create'
   | 'workflow.update'
   | 'workflow.delete'
-  | 'workflow.execute';
+  | 'workflow.execute'
+  | 'workflow_template.list'
+  | 'workflow_template.create'
+  | 'workflow_template.update'
+  | 'workflow_template.delete'
+  | 'workflow_template.instantiate';
 
 export interface AuditEntry {
   id: string;

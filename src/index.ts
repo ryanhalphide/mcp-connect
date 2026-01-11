@@ -16,6 +16,7 @@ import { promptsApi } from './api/prompts.js';
 import { searchApi } from './api/search.js';
 import { samplingApi } from './api/sampling.js';
 import { workflowsApi } from './api/workflows.js';
+import { workflowTemplatesApi } from './api/workflowTemplates.js';
 import { healthApi } from './api/health.js';
 import { webhookApi } from './api/webhook.js';
 import { monitorApi } from './api/monitor.js';
@@ -34,6 +35,8 @@ import { rbacApi } from './api/rbac.js';
 import { usageApi } from './api/usage.js';
 import { dockerApi } from './api/docker.js';
 import { analyticsApi } from './api/analytics.js';
+import { budgetsApi } from './api/budgetsRoutes.js';
+import { keyGuardianApi } from './api/keyGuardianRoutes.js';
 import { connectionPool } from './core/pool.js';
 import { toolRegistry } from './core/registry.js';
 import { resourceRegistry } from './core/resourceRegistry.js';
@@ -46,9 +49,12 @@ import { initializeCache, shutdownCache } from './core/cacheFactory.js';
 import { initializeCircuitBreaker } from './core/circuitBreakerFactory.js';
 import { initializeAuditLogger } from './observability/auditLog.js';
 import { registerBuiltInTemplates } from './seed/builtInTemplates.js';
+import { registerBuiltInWorkflowTemplates } from './seed/builtInWorkflowTemplates.js';
 import { initializeWebhookStore } from './storage/webhooks.js';
 import { webhookDeliveryService } from './core/webhookDelivery.js';
 import { initializeRBAC } from './rbac/policy.js';
+import { initializeProviders } from './llm/providers.js';
+import { budgetNotificationService } from './budgets/budgetNotifications.js';
 
 const app = new Hono();
 
@@ -95,6 +101,9 @@ app.route('/api/sampling', samplingApi);
 
 app.use('/api/workflows/*', authMiddleware);
 app.route('/api/workflows', workflowsApi);
+
+app.use('/api/workflow-templates/*', authMiddleware);
+app.route('/api/workflow-templates', workflowTemplatesApi);
 
 app.use('/api/webhook/invoke/*', authMiddleware);
 app.route('/api/webhook', webhookApi);
@@ -144,6 +153,14 @@ app.route('/api/docker', dockerApi);
 
 app.use('/api/analytics/*', authMiddleware);
 app.route('/api/analytics', analyticsApi);
+
+// Mount Budget routes (requires auth and budgets:write for write operations)
+app.use('/api/budgets/*', authMiddleware);
+app.route('/api/budgets', budgetsApi);
+
+// Mount KeyGuardian/Security routes (requires auth and security:write for write operations)
+app.use('/api/security/*', authMiddleware);
+app.route('/api/security', keyGuardianApi);
 
 // Mount Prometheus metrics endpoint (public - standard for metrics scraping)
 app.route('/metrics', prometheusApi);
@@ -201,12 +218,26 @@ async function startup() {
   logger.info('Initializing webhook service...');
   initializeWebhookStore(serverDatabase.getDatabase());
   webhookDeliveryService.start();
+
+  // Initialize budget notification service
+  logger.info('Initializing budget notification service...');
+  budgetNotificationService.start();
   logger.info('Webhook service initialized');
+
+  // Initialize LLM providers
+  logger.info('Initializing LLM providers...');
+  initializeProviders();
+  logger.info('LLM providers initialized');
 
   // Register built-in server templates
   logger.info('Registering built-in templates...');
   registerBuiltInTemplates();
   logger.info('Built-in templates registered');
+
+  // Register built-in workflow templates
+  logger.info('Registering built-in workflow templates...');
+  registerBuiltInWorkflowTemplates();
+  logger.info('Built-in workflow templates registered');
 
   // Load servers from config file if present
   const loadedCount = loadServersFromConfig();

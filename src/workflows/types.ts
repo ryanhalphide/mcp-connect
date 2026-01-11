@@ -4,7 +4,7 @@
 
 export type WorkflowStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type StepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
-export type StepType = 'tool' | 'prompt' | 'resource' | 'parallel' | 'condition';
+export type StepType = 'tool' | 'prompt' | 'resource' | 'parallel' | 'condition' | 'sampling';
 export type ErrorStrategy = 'stop' | 'continue' | 'retry';
 
 /**
@@ -23,6 +23,26 @@ export interface StepCondition {
   type: 'equals' | 'notEquals' | 'contains' | 'exists' | 'gt' | 'lt';
   path: string; // JSONPath to value in context
   value?: unknown;
+}
+
+/**
+ * LLM message for sampling steps
+ */
+export interface LLMMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+/**
+ * Sampling step configuration
+ */
+export interface SamplingStepConfig {
+  model: string;
+  messages: LLMMessage[];
+  maxTokens?: number;
+  temperature?: number;
+  topP?: number;
+  stopSequences?: string[];
 }
 
 /**
@@ -52,6 +72,9 @@ export interface WorkflowStep {
     condition?: StepCondition;
     then?: WorkflowStep[];
     else?: WorkflowStep[];
+
+    // For sampling steps
+    sampling?: SamplingStepConfig;
   };
   onError?: ErrorStrategy;
   retryConfig?: RetryConfig;

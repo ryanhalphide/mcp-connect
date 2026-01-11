@@ -13,6 +13,8 @@ import { WorkflowContext } from './context.js';
 import { WorkflowExecutor } from './executor.js';
 import { createChildLogger } from '../observability/logger.js';
 import { stepCostTracker, type StepCostData } from './stepCostTracker.js';
+import { KeyGuardian } from '../security/keyGuardian.js';
+import { BudgetEnforcer } from '../budgets/budgetEnforcer.js';
 
 const logger = createChildLogger({ module: 'workflow-engine' });
 
@@ -23,16 +25,40 @@ const logger = createChildLogger({ module: 'workflow-engine' });
 export class WorkflowEngine {
   private db: Database.Database;
   private executor: WorkflowExecutor;
+  private keyGuardian: KeyGuardian;
+  private budgetEnforcer: BudgetEnforcer;
 
   constructor(db: Database.Database) {
     this.db = db;
     this.executor = new WorkflowExecutor();
+    this.keyGuardian = new KeyGuardian(db);
+    this.budgetEnforcer = new BudgetEnforcer(db);
   }
 
   /**
    * Create a new workflow
    */
   createWorkflow(definition: WorkflowDefinition): Workflow {
+    // Scan for API key exposure before creating
+    const scanResult = this.keyGuardian.scanWorkflowDefinition(definition);
+
+    if (scanResult.keysDetected.length > 0) {
+      // Record detections
+      for (const detected of scanResult.keysDetected) {
+        this.keyGuardian.recordDetection(
+          'workflow_definition',
+          'workflow',
+          definition.name,
+          detected
+        );
+      }
+
+      // Block workflow creation
+      const errorMessage = `API key exposure detected in workflow definition. Found ${scanResult.keysDetected.length} key(s): ${scanResult.keysDetected.map(k => `${k.provider} at ${k.location}`).join(', ')}`;
+      logger.error({ workflowName: definition.name, keysDetected: scanResult.keysDetected }, 'Workflow creation blocked due to API key exposure');
+      throw new Error(errorMessage);
+    }
+
     const id = randomBytes(16).toString('hex');
     const now = new Date().toISOString();
 
@@ -115,6 +141,16 @@ export class WorkflowEngine {
       throw new Error(`Workflow is disabled: ${workflow.name}`);
     }
 
+    // Check budget before execution
+    const budgetCheck = this.budgetEnforcer.canExecuteWorkflow(workflowId);
+    if (!budgetCheck.allowed) {
+      logger.warn(
+        { workflowId, reason: budgetCheck.reason },
+        'Workflow execution blocked by budget'
+      );
+      throw new Error(`Budget exceeded: ${budgetCheck.reason}`);
+    }
+
     // Create execution record
     const executionId = randomBytes(16).toString('hex');
     const startedAt = new Date().toISOString();
@@ -193,6 +229,9 @@ export class WorkflowEngine {
 
       // Aggregate costs from all steps
       const aggregatedCosts = stepCostTracker.aggregateCosts(stepCosts);
+
+      // Record workflow cost against budgets
+      await this.budgetEnforcer.recordWorkflowCost(executionId, aggregatedCosts.totalCost);
 
       // Mark execution as completed
       await this.completeExecution(executionId, 'completed', output);

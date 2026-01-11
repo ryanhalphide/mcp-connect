@@ -1188,6 +1188,11 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <div className="chart-grid">
+                        <CostForecast historicalData={timeseries.data.map(d => ({ date: d.period, cost: d.total_cost }))} />
+                        <BudgetMonitor threshold={100} current={overview.totalCost} />
+                    </div>
                 </>
             );
         }
@@ -1626,6 +1631,365 @@
                     <button className="button" onClick={handleSave}>
                         Save Configuration
                     </button>
+                </div>
+            );
+        }
+
+        // Live Cost Stream Component
+        function LiveCostStream({ executionId }) {
+            const [cost, setCost] = useState(0);
+            const [steps, setSteps] = useState([]);
+            const [isConnected, setIsConnected] = useState(false);
+
+            useEffect(() => {
+                if (!executionId) return;
+
+                const eventSource = new EventSource(`/api/workflows/stream/${executionId}`);
+
+                eventSource.addEventListener('workflow.step.completed', (event) => {
+                    const data = JSON.parse(event.data);
+                    setCost(prev => prev + (data.cost || 0));
+                    setSteps(prev => [...prev, {
+                        name: data.stepName,
+                        cost: data.cost,
+                        timestamp: new Date().toISOString()
+                    }]);
+                });
+
+                eventSource.onopen = () => setIsConnected(true);
+                eventSource.onerror = () => setIsConnected(false);
+
+                return () => eventSource.close();
+            }, [executionId]);
+
+            if (!executionId) {
+                return (
+                    <div className="chart-card">
+                        <h3 className="chart-title">Live Cost Stream</h3>
+                        <div className="empty-state">
+                            <p>No active execution</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="chart-card">
+                    <h3 className="chart-title">
+                        Live Cost Stream
+                        <span style={{ marginLeft: '10px', fontSize: '12px', color: isConnected ? 'var(--success)' : 'var(--danger)' }}>
+                            {isConnected ? '● Connected' : '● Disconnected'}
+                        </span>
+                    </h3>
+                    <div style={{ padding: '20px' }}>
+                        <div style={{ fontSize: '36px', fontWeight: '700', color: 'var(--primary)', marginBottom: '20px' }}>
+                            ${cost.toFixed(4)}
+                        </div>
+                        <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                            {steps.map((step, i) => (
+                                <div key={i} style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    padding: '8px 0',
+                                    borderBottom: '1px solid var(--gray-200)',
+                                    animation: 'fadeIn 0.3s'
+                                }}>
+                                    <span>{step.name}</span>
+                                    <span style={{ fontWeight: '600' }}>${step.cost?.toFixed(4) || '0.0000'}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Execution Visualizer Component
+        function ExecutionVisualizer({ execution }) {
+            const chartRef = useRef(null);
+
+            useEffect(() => {
+                if (!execution || !chartRef.current) return;
+
+                const steps = execution.steps || [];
+                const ctx = chartRef.current.getContext('2d');
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: steps.map(s => s.name),
+                        datasets: [{
+                            label: 'Duration (ms)',
+                            data: steps.map(s => s.duration),
+                            backgroundColor: steps.map(s => {
+                                if (s.status === 'completed') return '#22c55e';
+                                if (s.status === 'failed') return '#ef4444';
+                                return '#f59e0b';
+                            })
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + 'ms';
+                                    }
+                                }
+                            }
+                        },
+                        onClick: (event, elements) => {
+                            if (elements.length > 0) {
+                                const index = elements[0].index;
+                                const step = steps[index];
+                                alert(`Step: ${step.name}\nDuration: ${step.duration}ms\nStatus: ${step.status}`);
+                            }
+                        }
+                    }
+                });
+
+                return () => {
+                    if (chartRef.current) {
+                        Chart.getChart(chartRef.current)?.destroy();
+                    }
+                };
+            }, [execution]);
+
+            if (!execution) {
+                return (
+                    <div className="chart-card">
+                        <h3 className="chart-title">Execution Timeline</h3>
+                        <div className="empty-state">
+                            <p>No execution data</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="chart-card">
+                    <h3 className="chart-title">Execution Timeline - {execution.name}</h3>
+                    <div className="chart-container">
+                        <canvas ref={chartRef}></canvas>
+                    </div>
+                </div>
+            );
+        }
+
+        // Cost Forecast Component
+        function CostForecast({ historicalData }) {
+            const chartRef = useRef(null);
+
+            useEffect(() => {
+                if (!historicalData || !chartRef.current) return;
+
+                // Simple linear regression
+                const data = historicalData.slice(-30); // Last 30 days
+                const n = data.length;
+                if (n < 2) return;
+
+                const x = data.map((_, i) => i);
+                const y = data.map(d => d.cost);
+
+                const sumX = x.reduce((a, b) => a + b, 0);
+                const sumY = y.reduce((a, b) => a + b, 0);
+                const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+                const sumXX = x.reduce((sum, xi) => sum + xi * xi, 0);
+
+                const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+                const intercept = (sumY - slope * sumX) / n;
+
+                // Forecast next 7 and 30 days
+                const forecast7 = [];
+                const forecast30 = [];
+                for (let i = n; i < n + 7; i++) {
+                    forecast7.push(slope * i + intercept);
+                }
+                for (let i = n; i < n + 30; i++) {
+                    forecast30.push(slope * i + intercept);
+                }
+
+                const ctx = chartRef.current.getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [
+                            ...data.map(d => d.date),
+                            ...Array.from({ length: 30 }, (_, i) => `+${i + 1}d`)
+                        ],
+                        datasets: [{
+                            label: 'Historical',
+                            data: [...y, ...Array(30).fill(null)],
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }, {
+                            label: '7-Day Forecast',
+                            data: [...Array(n).fill(null), ...forecast7, ...Array(23).fill(null)],
+                            borderColor: '#10b981',
+                            borderDash: [5, 5],
+                            fill: false
+                        }, {
+                            label: '30-Day Forecast',
+                            data: [...Array(n).fill(null), ...forecast30],
+                            borderColor: '#f59e0b',
+                            borderDash: [5, 5],
+                            fill: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '$' + value.toFixed(2);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                return () => {
+                    if (chartRef.current) {
+                        Chart.getChart(chartRef.current)?.destroy();
+                    }
+                };
+            }, [historicalData]);
+
+            return (
+                <div className="chart-card">
+                    <h3 className="chart-title">Cost Forecast</h3>
+                    <div className="chart-container">
+                        <canvas ref={chartRef}></canvas>
+                    </div>
+                    <div style={{ marginTop: '16px', fontSize: '13px', color: 'var(--gray-700)' }}>
+                        Forecast based on linear regression of last 30 days
+                    </div>
+                </div>
+            );
+        }
+
+        // Budget Monitor Component
+        function BudgetMonitor({ threshold, current }) {
+            const [notifications, setNotifications] = useState(true);
+            const percentage = (current / threshold) * 100;
+
+            useEffect(() => {
+                if (!notifications) return;
+
+                if (percentage >= 100 && !localStorage.getItem('budget_notified_100')) {
+                    new Notification('Budget Alert', {
+                        body: `You have exceeded your budget! Current: $${current.toFixed(2)}, Threshold: $${threshold.toFixed(2)}`,
+                        icon: '/favicon.ico'
+                    });
+                    localStorage.setItem('budget_notified_100', 'true');
+                } else if (percentage >= 90 && !localStorage.getItem('budget_notified_90')) {
+                    new Notification('Budget Warning', {
+                        body: `You have used 90% of your budget. Current: $${current.toFixed(2)}, Threshold: $${threshold.toFixed(2)}`,
+                        icon: '/favicon.ico'
+                    });
+                    localStorage.setItem('budget_notified_90', 'true');
+                } else if (percentage >= 75 && !localStorage.getItem('budget_notified_75')) {
+                    new Notification('Budget Notice', {
+                        body: `You have used 75% of your budget. Current: $${current.toFixed(2)}, Threshold: $${threshold.toFixed(2)}`,
+                        icon: '/favicon.ico'
+                    });
+                    localStorage.setItem('budget_notified_75', 'true');
+                }
+            }, [percentage, current, threshold, notifications]);
+
+            const getColor = () => {
+                if (percentage >= 100) return 'var(--danger)';
+                if (percentage >= 90) return 'var(--danger)';
+                if (percentage >= 75) return 'var(--warning)';
+                if (percentage >= 50) return 'var(--warning)';
+                return 'var(--success)';
+            };
+
+            const requestNotificationPermission = async () => {
+                if ('Notification' in window && Notification.permission === 'default') {
+                    const permission = await Notification.requestPermission();
+                    setNotifications(permission === 'granted');
+                }
+            };
+
+            return (
+                <div className="chart-card">
+                    <h3 className="chart-title">Budget Monitor</h3>
+                    <div style={{ padding: '20px' }}>
+                        <div style={{ marginBottom: '20px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '14px', color: 'var(--gray-700)' }}>Current Spend</span>
+                                <span style={{ fontSize: '16px', fontWeight: '600' }}>${current.toFixed(2)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                                <span style={{ fontSize: '14px', color: 'var(--gray-700)' }}>Budget Threshold</span>
+                                <span style={{ fontSize: '16px', fontWeight: '600' }}>${threshold.toFixed(2)}</span>
+                            </div>
+                            <div style={{
+                                width: '100%',
+                                height: '24px',
+                                background: 'var(--gray-200)',
+                                borderRadius: '12px',
+                                overflow: 'hidden',
+                                position: 'relative'
+                            }}>
+                                <div style={{
+                                    width: `${Math.min(percentage, 100)}%`,
+                                    height: '100%',
+                                    background: getColor(),
+                                    transition: 'width 0.3s ease, background 0.3s ease',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontSize: '12px',
+                                    fontWeight: '600'
+                                }}>
+                                    {percentage.toFixed(1)}%
+                                </div>
+                            </div>
+                        </div>
+                        <div style={{
+                            padding: '12px',
+                            background: percentage >= 90 ? 'var(--error-bg)' : percentage >= 75 ? 'var(--warning-bg)' : 'var(--success-bg)',
+                            borderRadius: '8px',
+                            marginBottom: '16px'
+                        }}>
+                            <div style={{ fontSize: '13px', fontWeight: '500' }}>
+                                {percentage >= 100 ? '🚨 Budget Exceeded!' :
+                                 percentage >= 90 ? '⚠️ Approaching Budget Limit' :
+                                 percentage >= 75 ? '⚡ 75% Budget Used' :
+                                 '✅ Within Budget'}
+                            </div>
+                        </div>
+                        {Notification.permission !== 'granted' && (
+                            <button
+                                className="button"
+                                onClick={requestNotificationPermission}
+                                style={{ width: '100%' }}
+                            >
+                                Enable Browser Notifications
+                            </button>
+                        )}
+                    </div>
                 </div>
             );
         }

@@ -54,6 +54,12 @@ export const PERMISSIONS: Permission[] = [
   { name: 'workflows:delete', resource: 'workflows', action: 'delete', description: 'Delete workflows' },
   { name: 'workflows:execute', resource: 'workflows', action: 'execute', description: 'Execute workflows' },
 
+  // Workflow template management
+  { name: 'workflow_templates:read', resource: 'workflow_templates', action: 'read', description: 'View workflow templates' },
+  { name: 'workflow_templates:write', resource: 'workflow_templates', action: 'write', description: 'Create/update workflow templates' },
+  { name: 'workflow_templates:delete', resource: 'workflow_templates', action: 'delete', description: 'Delete workflow templates' },
+  { name: 'workflow_templates:execute', resource: 'workflow_templates', action: 'execute', description: 'Instantiate workflow templates' },
+
   // Webhook management
   { name: 'webhooks:read', resource: 'webhooks', action: 'read', description: 'View webhooks' },
   { name: 'webhooks:write', resource: 'webhooks', action: 'write', description: 'Create/update webhooks' },
@@ -91,6 +97,22 @@ export const PERMISSIONS: Permission[] = [
   // Cache management
   { name: 'cache:read', resource: 'cache', action: 'read', description: 'View cache stats' },
   { name: 'cache:write', resource: 'cache', action: 'write', description: 'Manage cache' },
+
+  // LLM Sampling (Track 1)
+  { name: 'sampling:execute', resource: 'sampling', action: 'execute', description: 'Execute LLM sampling requests' },
+  { name: 'sampling:configure', resource: 'sampling', action: 'admin', description: 'Configure LLM providers' },
+  { name: 'sampling:usage', resource: 'sampling', action: 'read', description: 'View sampling usage statistics' },
+
+  // Budget Management (Track 4A)
+  { name: 'budgets:read', resource: 'budgets', action: 'read', description: 'View cost budgets and alerts' },
+  { name: 'budgets:write', resource: 'budgets', action: 'write', description: 'Create/update cost budgets' },
+  { name: 'budgets:delete', resource: 'budgets', action: 'delete', description: 'Delete cost budgets' },
+  { name: 'budgets:admin', resource: 'budgets', action: 'admin', description: 'Manage budget policies and violations' },
+
+  // KeyGuardian Security (Track 4B)
+  { name: 'security:read', resource: 'security', action: 'read', description: 'View key exposure detections' },
+  { name: 'security:write', resource: 'security', action: 'write', description: 'Manage security patterns and resolve detections' },
+  { name: 'security:admin', resource: 'security', action: 'admin', description: 'Configure KeyGuardian and security policies' },
 ];
 
 /**
@@ -113,6 +135,8 @@ export const BUILT_IN_ROLES: Role[] = [
       'prompts:read',
       'workflows:read',
       'workflows:execute',
+      'workflow_templates:read',
+      'workflow_templates:execute',
       'search:use',
       'templates:read',
       'usage:read',
@@ -128,6 +152,8 @@ export const BUILT_IN_ROLES: Role[] = [
       'prompts:read',
       'workflows:read',
       'workflows:execute',
+      'workflow_templates:read',
+      'workflow_templates:execute',
       'templates:read',
     ],
   },
@@ -140,6 +166,7 @@ export const BUILT_IN_ROLES: Role[] = [
       'resources:read',
       'prompts:read',
       'workflows:read',
+      'workflow_templates:read',
       'templates:read',
       'usage:read',
     ],
@@ -223,10 +250,35 @@ export function getApiKeyPermissions(db: Database.Database, apiKeyId: string): S
 
 /**
  * Check if an API key has a specific permission
+ * Checks both role-based permissions AND API key scopes (from metadata)
  */
 export function hasPermission(db: Database.Database, apiKeyId: string, permission: string): boolean {
-  const permissions = getApiKeyPermissions(db, apiKeyId);
-  return permissions.has(permission);
+  // First check role-based permissions
+  const rolePermissions = getApiKeyPermissions(db, apiKeyId);
+  if (rolePermissions.has(permission)) {
+    return true;
+  }
+
+  // Also check API key scopes in metadata (direct scope-based permissions)
+  const apiKeyRow = db
+    .prepare(`SELECT metadata FROM api_keys WHERE id = ? AND enabled = 1`)
+    .get(apiKeyId) as { metadata: string } | undefined;
+
+  if (apiKeyRow) {
+    try {
+      const metadata = JSON.parse(apiKeyRow.metadata);
+      const scopes = metadata.scopes || [];
+
+      // Check if permission is in scopes (exact match or wildcard)
+      if (scopes.includes(permission) || scopes.includes('*')) {
+        return true;
+      }
+    } catch (error) {
+      logger.warn({ apiKeyId, error }, 'Failed to parse API key metadata');
+    }
+  }
+
+  return false;
 }
 
 /**

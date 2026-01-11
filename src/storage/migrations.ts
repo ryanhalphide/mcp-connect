@@ -527,6 +527,182 @@ export const migration005: Migration = {
   },
 };
 
+// Migration 006: Parallel feature implementation (Sampling, Templates, Budgets, KeyGuardian)
+export const migration006: Migration = {
+  version: 6,
+  name: 'feature_development_all_tracks',
+  up: (db) => {
+    // TRACK 1: Cost tracking columns for workflow_execution_steps
+    // These columns enable LLM cost tracking in workflows
+    // SQLite requires separate ALTER TABLE statements
+    try {
+      db.exec(`ALTER TABLE workflow_execution_steps ADD COLUMN tokens_used INTEGER DEFAULT 0;`);
+    } catch (e: any) {
+      if (!e.message?.includes('duplicate column name')) throw e;
+    }
+
+    try {
+      db.exec(`ALTER TABLE workflow_execution_steps ADD COLUMN cost_credits REAL DEFAULT 0;`);
+    } catch (e: any) {
+      if (!e.message?.includes('duplicate column name')) throw e;
+    }
+
+    try {
+      db.exec(`ALTER TABLE workflow_execution_steps ADD COLUMN model_name TEXT;`);
+    } catch (e: any) {
+      if (!e.message?.includes('duplicate column name')) throw e;
+    }
+
+    try {
+      db.exec(`ALTER TABLE workflow_execution_steps ADD COLUMN duration_ms INTEGER;`);
+    } catch (e: any) {
+      if (!e.message?.includes('duplicate column name')) throw e;
+    }
+
+    // TRACK 3: Workflow templates library
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS workflow_templates (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT DEFAULT '',
+        category TEXT NOT NULL,
+        tags_json TEXT DEFAULT '[]',
+        difficulty TEXT CHECK(difficulty IN ('beginner', 'intermediate', 'advanced')) DEFAULT 'beginner',
+        estimated_cost_credits REAL DEFAULT 0,
+        estimated_duration_ms INTEGER DEFAULT 0,
+        definition_json TEXT NOT NULL,
+        parameter_schema_json TEXT DEFAULT '{}',
+        is_built_in INTEGER NOT NULL DEFAULT 0,
+        usage_count INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_workflow_templates_category
+        ON workflow_templates(category);
+      CREATE INDEX IF NOT EXISTS idx_workflow_templates_difficulty
+        ON workflow_templates(difficulty);
+      CREATE INDEX IF NOT EXISTS idx_workflow_templates_is_built_in
+        ON workflow_templates(is_built_in);
+      CREATE INDEX IF NOT EXISTS idx_workflow_templates_usage
+        ON workflow_templates(usage_count DESC);
+    `);
+
+    // TRACK 4A: Cost budget system
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS cost_budgets (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        scope TEXT NOT NULL CHECK(scope IN ('workflow', 'tenant', 'api_key', 'global')),
+        scope_id TEXT,
+        budget_credits REAL NOT NULL,
+        period TEXT NOT NULL CHECK(period IN ('daily', 'weekly', 'monthly', 'total')),
+        period_start TEXT NOT NULL,
+        period_end TEXT,
+        current_spend REAL NOT NULL DEFAULT 0,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        enforce_limit INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(scope, scope_id, period)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_budgets_scope
+        ON cost_budgets(scope, scope_id);
+      CREATE INDEX IF NOT EXISTS idx_budgets_enabled
+        ON cost_budgets(enabled);
+      CREATE INDEX IF NOT EXISTS idx_budgets_period_end
+        ON cost_budgets(period_end);
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS budget_alerts (
+        id TEXT PRIMARY KEY,
+        budget_id TEXT NOT NULL,
+        threshold_percent INTEGER NOT NULL CHECK(threshold_percent IN (50, 75, 90, 100)),
+        triggered_at TEXT,
+        notification_sent INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (budget_id) REFERENCES cost_budgets(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_budget_alerts_budget
+        ON budget_alerts(budget_id);
+      CREATE INDEX IF NOT EXISTS idx_budget_alerts_threshold
+        ON budget_alerts(threshold_percent);
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS budget_violations (
+        id TEXT PRIMARY KEY,
+        budget_id TEXT NOT NULL,
+        workflow_execution_id TEXT,
+        exceeded_by_credits REAL NOT NULL,
+        action_taken TEXT NOT NULL CHECK(action_taken IN ('alert_only', 'workflow_paused', 'execution_blocked')),
+        occurred_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (budget_id) REFERENCES cost_budgets(id) ON DELETE CASCADE,
+        FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(id) ON DELETE SET NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_budget_violations_budget
+        ON budget_violations(budget_id);
+      CREATE INDEX IF NOT EXISTS idx_budget_violations_occurred
+        ON budget_violations(occurred_at);
+    `);
+
+    // TRACK 4B: KeyGuardian API protection
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS key_exposure_detections (
+        id TEXT PRIMARY KEY,
+        detection_type TEXT NOT NULL CHECK(detection_type IN ('workflow_definition', 'tool_parameter', 'prompt_argument', 'resource_uri')),
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        key_pattern TEXT NOT NULL,
+        key_prefix TEXT NOT NULL,
+        location TEXT NOT NULL,
+        severity TEXT NOT NULL CHECK(severity IN ('high', 'medium', 'low')) DEFAULT 'high',
+        action_taken TEXT NOT NULL CHECK(action_taken IN ('blocked', 'masked', 'logged')) DEFAULT 'blocked',
+        api_key_id TEXT,
+        tenant_id TEXT,
+        detected_at TEXT NOT NULL DEFAULT (datetime('now')),
+        resolved_at TEXT,
+        resolution_notes TEXT,
+        FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE SET NULL,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE SET NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_key_exposure_entity
+        ON key_exposure_detections(entity_type, entity_id);
+      CREATE INDEX IF NOT EXISTS idx_key_exposure_detected
+        ON key_exposure_detections(detected_at);
+      CREATE INDEX IF NOT EXISTS idx_key_exposure_resolved
+        ON key_exposure_detections(resolved_at);
+      CREATE INDEX IF NOT EXISTS idx_key_exposure_severity
+        ON key_exposure_detections(severity);
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS key_patterns (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        pattern TEXT NOT NULL,
+        description TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        severity TEXT NOT NULL CHECK(severity IN ('high', 'medium', 'low')) DEFAULT 'high',
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_key_patterns_provider
+        ON key_patterns(provider);
+      CREATE INDEX IF NOT EXISTS idx_key_patterns_enabled
+        ON key_patterns(enabled);
+    `);
+
+    logger.info('Migration 006: All track tables created successfully (Sampling cost tracking, Templates, Budgets, KeyGuardian)');
+  },
+};
+
 // Export all migrations in order
 export const allMigrations: Migration[] = [
   migration001,
@@ -534,4 +710,5 @@ export const allMigrations: Migration[] = [
   migration003,
   migration004,
   migration005,
+  migration006,
 ];

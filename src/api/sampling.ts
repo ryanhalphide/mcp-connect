@@ -1,6 +1,10 @@
 import { Hono } from 'hono';
 import type { ApiResponse } from '../core/types.js';
 import { createChildLogger } from '../observability/logger.js';
+import { providerRegistry, type LLMRequest, ProviderError } from '../llm/providers.js';
+import { samplingSecurity, SecurityError } from '../llm/security.js';
+import { circuitBreakerRegistry } from '../core/circuitBreaker.js';
+import { z } from 'zod';
 
 const logger = createChildLogger({ module: 'sampling-api' });
 
@@ -14,114 +18,223 @@ function apiResponse<T>(data: T | null = null, success = true, error?: string): 
   };
 }
 
+// Request validation schemas
+const SamplingRequestSchema = z.object({
+  model: z.string().min(1),
+  messages: z.array(
+    z.object({
+      role: z.enum(['system', 'user', 'assistant']),
+      content: z.string(),
+    })
+  ),
+  maxTokens: z.number().int().positive().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  topP: z.number().min(0).max(1).optional(),
+  stopSequences: z.array(z.string()).optional(),
+});
+
+const ProviderConfigSchema = z.object({
+  apiKey: z.string().min(1),
+  baseURL: z.string().url().optional(),
+});
+
 export const samplingApi = new Hono();
+
+/**
+ * POST /sampling/request
+ * Execute an LLM completion request
+ */
+samplingApi.post('/request', async (c) => {
+  try {
+    // Parse and validate request body
+    const body = await c.req.json();
+    const validationResult = SamplingRequestSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      logger.warn({ errors: validationResult.error.errors }, 'Invalid sampling request');
+      return c.json(apiResponse(null, false, 'Invalid request format'), 400 as any);
+    }
+
+    const request: LLMRequest = validationResult.data;
+
+    // Get user ID from context (TODO: integrate with auth middleware)
+    const userId = c.req.header('x-user-id') || 'anonymous';
+
+    // Security validation
+    const securityCheck = await samplingSecurity.validateRequest(userId, request);
+    if (!securityCheck.valid) {
+      logger.warn({ userId, error: securityCheck.error }, 'Security validation failed');
+      return c.json(
+        apiResponse(null, false, securityCheck.error?.message || 'Security check failed'),
+        403 as any
+      );
+    }
+
+    // Get provider for model
+    const provider = providerRegistry.getProviderForModel(request.model);
+    if (!provider) {
+      logger.warn({ model: request.model }, 'No provider found for model');
+      return c.json(apiResponse(null, false, `No provider available for model: ${request.model}`), 400 as any);
+    }
+
+    // Execute with circuit breaker
+    const breaker = circuitBreakerRegistry.getBreaker(`llm-${provider.type}`);
+    const response = await breaker.execute(async () => {
+      return providerRegistry.complete(request);
+    });
+
+    // Track usage
+    samplingSecurity.trackUsage(userId, response.usage.inputTokens, response.usage.outputTokens);
+
+    logger.info(
+      {
+        userId,
+        model: response.model,
+        provider: response.provider,
+        inputTokens: response.usage.inputTokens,
+        outputTokens: response.usage.outputTokens,
+      },
+      'Sampling request completed'
+    );
+
+    return c.json(apiResponse(response));
+  } catch (error) {
+    if (error instanceof SecurityError) {
+      logger.warn({ error: error.message, code: error.code }, 'Security error');
+      return c.json(apiResponse(null, false, error.message), 403 as any);
+    }
+
+    if (error instanceof ProviderError) {
+      logger.error({ error: error.message, provider: error.provider }, 'Provider error');
+      return c.json(apiResponse(null, false, error.message), (error.statusCode || 500) as any);
+    }
+
+    logger.error({ error }, 'Sampling request failed');
+    return c.json(apiResponse(null, false, 'Internal server error'), 500 as any);
+  }
+});
+
+/**
+ * GET /sampling/providers
+ * List available LLM providers and their models
+ */
+samplingApi.get('/providers', (c) => {
+  const providers = providerRegistry.listProviders();
+
+  return c.json(
+    apiResponse({
+      providers: providers.map((p) => ({
+        type: p.type,
+        models: p.models,
+        available: true,
+      })),
+      count: providers.length,
+    })
+  );
+});
+
+/**
+ * POST /sampling/providers/:provider/configure
+ * Configure an LLM provider (admin only)
+ */
+samplingApi.post('/providers/:provider/configure', async (c) => {
+  const providerType = c.req.param('provider') as 'openai' | 'anthropic';
+
+  // TODO: Add admin authentication middleware
+
+  try {
+    const body = await c.req.json();
+    const validationResult = ProviderConfigSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      return c.json(apiResponse(null, false, 'Invalid provider configuration'), 400 as any);
+    }
+
+    const config = validationResult.data;
+
+    // Dynamically import and register provider
+    if (providerType === 'openai') {
+      const { OpenAIProvider } = await import('../llm/providers.js');
+      const provider = new OpenAIProvider(config);
+      providerRegistry.register(provider);
+    } else if (providerType === 'anthropic') {
+      const { AnthropicProvider } = await import('../llm/providers.js');
+      const provider = new AnthropicProvider(config);
+      providerRegistry.register(provider);
+    } else {
+      return c.json(apiResponse(null, false, `Unsupported provider: ${providerType}`), 400 as any);
+    }
+
+    logger.info({ provider: providerType }, 'Provider configured');
+
+    return c.json(
+      apiResponse({
+        provider: providerType,
+        configured: true,
+      })
+    );
+  } catch (error) {
+    logger.error({ error, provider: providerType }, 'Provider configuration failed');
+    return c.json(apiResponse(null, false, 'Failed to configure provider'), 500 as any);
+  }
+});
+
+/**
+ * GET /sampling/usage
+ * Get sampling usage statistics
+ */
+samplingApi.get('/usage', (c) => {
+  // Get user ID from context
+  const userId = c.req.header('x-user-id') || 'anonymous';
+
+  const stats = samplingSecurity.getUsageStats(userId);
+
+  return c.json(
+    apiResponse({
+      userId,
+      dailyTokens: stats.dailyTokens,
+      requestCount: stats.requestCount,
+      remainingTokens: stats.remainingTokens,
+      resetAt: stats.resetAt.toISOString(),
+      limits: {
+        maxTokensPerDay: samplingSecurity.getConfig().maxTokensPerDay,
+        maxTokensPerRequest: samplingSecurity.getConfig().maxTokensPerRequest,
+      },
+    })
+  );
+});
 
 /**
  * GET /sampling/info
  * Get information about sampling support
  */
 samplingApi.get('/info', (c) => {
+  const providers = providerRegistry.listProviders();
+  const config = samplingSecurity.getConfig();
+
   return c.json(
     apiResponse({
-      status: 'not_implemented',
-      description: 'Sampling allows MCP servers to request LLM completions through the host application',
-      specification: {
-        capability: 'sampling',
-        methods: ['sampling/createMessage'],
-        documentation: 'https://spec.modelcontextprotocol.io/specification/server/sampling/',
+      status: 'operational',
+      description: 'LLM sampling API for workflow integration',
+      providers: {
+        available: providers.length,
+        types: providers.map((p) => p.type),
       },
-      requirements: {
-        llm_provider: 'Required: OpenAI, Anthropic, or other LLM provider integration',
-        cost_control: 'Required: Token limits, budget caps, and usage tracking per server',
-        security: 'Required: Prompt injection protection, content filtering, rate limiting',
-        monitoring: 'Required: Audit logging for all LLM calls, cost attribution',
+      security: {
+        promptInjectionDetection: config.enablePromptInjectionDetection,
+        contentFiltering: config.enableContentFiltering,
+        piiDetection: config.enablePIIDetection,
       },
-      implementation_notes: [
-        'Sampling is a sensitive capability that requires careful security controls',
-        'Each MCP server requesting sampling should have explicit permission',
-        'All sampling requests should be logged with full context for audit',
-        'Cost attribution must be tracked per server and per API key',
-        'Consider implementing approval workflows for high-cost operations',
-        'Implement timeout and token limit enforcement',
-      ],
-      future_endpoints: {
-        'POST /sampling/request': 'Request an LLM completion from a configured provider',
-        'GET /sampling/providers': 'List available LLM providers',
-        'POST /sampling/providers/:id/configure': 'Configure an LLM provider',
-        'GET /sampling/usage': 'Get sampling usage statistics and costs',
-        'POST /sampling/servers/:id/permissions': 'Grant/revoke sampling permissions',
+      limits: {
+        maxTokensPerRequest: config.maxTokensPerRequest,
+        maxTokensPerDay: config.maxTokensPerDay,
       },
-      example_workflow: {
-        '1_configure_provider': 'POST /sampling/providers/anthropic/configure with API key',
-        '2_grant_permission': 'POST /sampling/servers/{server-id}/permissions with budget limits',
-        '3_server_requests_sampling': 'Server sends sampling/createMessage via MCP protocol',
-        '4_gateway_forwards': 'Gateway forwards to LLM provider, tracks usage, returns response',
-        '5_monitor_usage': 'GET /sampling/usage to view costs and token consumption',
+      endpoints: {
+        'POST /sampling/request': 'Execute LLM completion',
+        'GET /sampling/providers': 'List available providers',
+        'GET /sampling/usage': 'Get usage statistics',
+        'POST /sampling/providers/:provider/configure': 'Configure provider (admin)',
       },
     })
-  );
-});
-
-/**
- * POST /sampling/request
- * Placeholder for future sampling request implementation
- */
-samplingApi.post('/request', (c) => {
-  logger.warn('Sampling request attempted but feature not yet implemented');
-  return c.json(
-    apiResponse(
-      null,
-      false,
-      'Sampling is not yet implemented. This endpoint is a placeholder for future LLM integration. See GET /sampling/info for implementation requirements.'
-    ),
-    501 // Not Implemented
-  );
-});
-
-/**
- * GET /sampling/providers
- * Placeholder for LLM provider listing
- */
-samplingApi.get('/providers', (c) => {
-  return c.json(
-    apiResponse({
-      providers: [],
-      message:
-        'LLM provider integration not yet implemented. Future providers will include OpenAI, Anthropic Claude, and others.',
-      planned_providers: ['openai', 'anthropic', 'azure-openai', 'vertex-ai', 'bedrock'],
-    })
-  );
-});
-
-/**
- * GET /sampling/usage
- * Placeholder for sampling usage statistics
- */
-samplingApi.get('/usage', (c) => {
-  return c.json(
-    apiResponse({
-      total_requests: 0,
-      total_tokens: 0,
-      total_cost_usd: 0,
-      by_server: [],
-      message: 'Usage tracking will be available when sampling is implemented',
-    })
-  );
-});
-
-/**
- * POST /sampling/servers/:id/permissions
- * Placeholder for managing server sampling permissions
- */
-samplingApi.post('/servers/:id/permissions', (c) => {
-  const serverId = c.req.param('id');
-  logger.warn({ serverId }, 'Attempted to configure sampling permissions but feature not implemented');
-  return c.json(
-    apiResponse(
-      null,
-      false,
-      'Sampling permissions configuration not yet implemented. This will allow fine-grained control over which servers can request LLM completions.'
-    ),
-    501
   );
 });

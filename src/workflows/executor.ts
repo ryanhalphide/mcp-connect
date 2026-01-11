@@ -10,6 +10,8 @@ import { getPrompt } from '../mcp/client.js';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { createChildLogger } from '../observability/logger.js';
 import { stepCostTracker, type StepCostData } from './stepCostTracker.js';
+import { providerRegistry } from '../llm/providers.js';
+import { samplingSecurity } from '../llm/security.js';
 
 const logger = createChildLogger({ module: 'workflow-executor' });
 
@@ -50,6 +52,9 @@ export class WorkflowExecutor {
           break;
         case 'condition':
           output = await this.executeCondition(interpolatedConfig, context);
+          break;
+        case 'sampling':
+          output = await this.executeSampling(interpolatedConfig, context);
           break;
         default:
           throw new Error(`Unknown step type: ${step.type}`);
@@ -276,6 +281,61 @@ export class WorkflowExecutor {
       retries: maxAttempts - 1,
       costData: lastCostData,
     };
+  }
+
+  /**
+   * Execute a sampling (LLM completion) step
+   */
+  private async executeSampling(
+    config: WorkflowStep['config'],
+    context: WorkflowContext
+  ): Promise<unknown> {
+    if (!config.sampling) {
+      throw new Error('Sampling step requires "sampling" configuration');
+    }
+
+    const samplingConfig = config.sampling;
+
+    // Validate request with security layer
+    const userId = 'workflow-system'; // TODO: Get actual user ID from context
+    const validation = await samplingSecurity.validateRequest(userId, {
+      model: samplingConfig.model,
+      messages: samplingConfig.messages,
+      maxTokens: samplingConfig.maxTokens,
+      temperature: samplingConfig.temperature,
+      topP: samplingConfig.topP,
+      stopSequences: samplingConfig.stopSequences,
+    });
+
+    if (!validation.valid) {
+      throw validation.error;
+    }
+
+    // Execute completion through provider registry
+    const response = await providerRegistry.complete({
+      model: samplingConfig.model,
+      messages: samplingConfig.messages,
+      maxTokens: samplingConfig.maxTokens,
+      temperature: samplingConfig.temperature,
+      topP: samplingConfig.topP,
+      stopSequences: samplingConfig.stopSequences,
+    });
+
+    // Track usage
+    samplingSecurity.trackUsage(userId, response.usage.inputTokens, response.usage.outputTokens);
+
+    logger.info(
+      {
+        model: response.model,
+        provider: response.provider,
+        inputTokens: response.usage.inputTokens,
+        outputTokens: response.usage.outputTokens,
+        finishReason: response.finishReason,
+      },
+      'Sampling step completed'
+    );
+
+    return response;
   }
 
   /**

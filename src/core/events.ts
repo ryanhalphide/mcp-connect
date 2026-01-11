@@ -15,7 +15,17 @@ export type EventType =
   | 'tool.error'
   | 'circuit.opened'
   | 'circuit.closed'
-  | 'circuit.half_open';
+  | 'circuit.half_open'
+  | 'workflow_template.created'
+  | 'workflow_template.instantiated'
+  | 'workflow_template.deleted'
+  | 'budget.threshold_50_reached'
+  | 'budget.threshold_75_reached'
+  | 'budget.threshold_90_reached'
+  | 'budget.exceeded'
+  | 'workflow.paused_budget'
+  | 'key_exposure.detected'
+  | 'key_exposure.blocked';
 
 // Event payloads
 export interface ServerEvent {
@@ -88,6 +98,83 @@ export interface CircuitHalfOpenEvent extends CircuitEvent {
   type: 'circuit.half_open';
 }
 
+export interface WorkflowTemplateEvent {
+  templateId: string;
+  templateName?: string;
+  timestamp: Date;
+}
+
+export interface WorkflowTemplateCreatedEvent extends WorkflowTemplateEvent {
+  type: 'workflow_template.created';
+  templateName: string;
+}
+
+export interface WorkflowTemplateInstantiatedEvent extends WorkflowTemplateEvent {
+  type: 'workflow_template.instantiated';
+  workflowId?: string;
+}
+
+export interface WorkflowTemplateDeletedEvent extends WorkflowTemplateEvent {
+  type: 'workflow_template.deleted';
+}
+
+// Budget events
+export interface BudgetThresholdEvent {
+  budgetId: string;
+  threshold: number;
+  currentSpend: number;
+  budgetLimit: number;
+  percentageUsed: number;
+  timestamp: Date;
+}
+
+export interface BudgetThreshold50Event extends BudgetThresholdEvent {
+  type: 'budget.threshold_50_reached';
+  threshold: 50;
+}
+
+export interface BudgetThreshold75Event extends BudgetThresholdEvent {
+  type: 'budget.threshold_75_reached';
+  threshold: 75;
+}
+
+export interface BudgetThreshold90Event extends BudgetThresholdEvent {
+  type: 'budget.threshold_90_reached';
+  threshold: 90;
+}
+
+export interface BudgetExceededEvent extends BudgetThresholdEvent {
+  type: 'budget.exceeded';
+  threshold: 100;
+}
+
+export interface WorkflowPausedBudgetEvent {
+  workflowId: string;
+  reason: string;
+  budgetId?: string;
+  timestamp: Date;
+  type: 'workflow.paused_budget';
+}
+
+// Security events
+export interface KeyExposureDetectedEvent {
+  detectionId: string;
+  provider: string;
+  location: string;
+  severity: 'high' | 'medium' | 'low';
+  timestamp: Date;
+  type: 'key_exposure.detected';
+}
+
+export interface KeyExposureBlockedEvent {
+  detectionId: string;
+  provider: string;
+  entityType: string;
+  entityId: string;
+  timestamp: Date;
+  type: 'key_exposure.blocked';
+}
+
 export type AppEvent =
   | ServerConnectedEvent
   | ServerDisconnectedEvent
@@ -99,7 +186,17 @@ export type AppEvent =
   | ToolErrorEvent
   | CircuitOpenedEvent
   | CircuitClosedEvent
-  | CircuitHalfOpenEvent;
+  | CircuitHalfOpenEvent
+  | WorkflowTemplateCreatedEvent
+  | WorkflowTemplateInstantiatedEvent
+  | WorkflowTemplateDeletedEvent
+  | BudgetThreshold50Event
+  | BudgetThreshold75Event
+  | BudgetThreshold90Event
+  | BudgetExceededEvent
+  | WorkflowPausedBudgetEvent
+  | KeyExposureDetectedEvent
+  | KeyExposureBlockedEvent;
 
 /**
  * Typed event emitter for application events
@@ -187,6 +284,27 @@ class AppEventEmitter extends EventEmitter {
   emitCircuitHalfOpen(serverId: string, serverName: string): void {
     this.emit<CircuitHalfOpenEvent>('circuit.half_open', { serverId, serverName });
   }
+
+  // Emit workflow template events
+  emitWorkflowTemplateCreated(templateId: string, templateName: string): void {
+    this.emit<WorkflowTemplateCreatedEvent>('workflow_template.created', {
+      templateId,
+      templateName,
+    });
+  }
+
+  emitWorkflowTemplateInstantiated(templateId: string, workflowId?: string): void {
+    this.emit<WorkflowTemplateInstantiatedEvent>('workflow_template.instantiated', {
+      templateId,
+      workflowId,
+    });
+  }
+
+  emitWorkflowTemplateDeleted(templateId: string): void {
+    this.emit<WorkflowTemplateDeletedEvent>('workflow_template.deleted', {
+      templateId,
+    });
+  }
 }
 
 // Singleton instance
@@ -205,4 +323,14 @@ export const ALL_EVENT_TYPES: EventType[] = [
   'circuit.opened',
   'circuit.closed',
   'circuit.half_open',
+  'workflow_template.created',
+  'workflow_template.instantiated',
+  'workflow_template.deleted',
+  'budget.threshold_50_reached',
+  'budget.threshold_75_reached',
+  'budget.threshold_90_reached',
+  'budget.exceeded',
+  'workflow.paused_budget',
+  'key_exposure.detected',
+  'key_exposure.blocked',
 ];
