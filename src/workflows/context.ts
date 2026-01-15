@@ -5,11 +5,79 @@ import { createChildLogger } from '../observability/logger.js';
 const logger = createChildLogger({ module: 'workflow-context' });
 
 /**
+ * LRU Cache for compiled Handlebars templates
+ * Avoids recompiling the same template strings repeatedly
+ *
+ * For workflows with 100+ steps, this can eliminate thousands of
+ * redundant Handlebars.compile() calls when steps use similar patterns.
+ */
+class TemplateCache {
+  private cache: Map<string, Handlebars.TemplateDelegate>;
+  private maxSize: number;
+
+  constructor(maxSize: number = 1000) {
+    this.cache = new Map();
+    this.maxSize = maxSize;
+  }
+
+  /**
+   * Get a compiled template, using cache if available
+   */
+  get(templateString: string): Handlebars.TemplateDelegate {
+    let template = this.cache.get(templateString);
+
+    if (template) {
+      // Move to end (most recently used) by re-inserting
+      this.cache.delete(templateString);
+      this.cache.set(templateString, template);
+      return template;
+    }
+
+    // Compile and cache
+    template = Handlebars.compile(templateString);
+
+    // Evict oldest if at capacity
+    if (this.cache.size >= this.maxSize) {
+      const oldest = this.cache.keys().next().value;
+      if (oldest) {
+        this.cache.delete(oldest);
+      }
+    }
+
+    this.cache.set(templateString, template);
+    return template;
+  }
+
+  /**
+   * Clear the cache
+   */
+  clear(): void {
+    this.cache.clear();
+  }
+
+  /**
+   * Get cache statistics
+   */
+  stats(): { size: number; maxSize: number } {
+    return { size: this.cache.size, maxSize: this.maxSize };
+  }
+}
+
+// Shared template cache across all workflow contexts
+// This allows templates to be reused across workflow executions
+const globalTemplateCache = new TemplateCache(1000);
+
+/**
  * Workflow execution context manager
  * Handles variable interpolation using Handlebars templates
+ *
+ * Performance optimizations:
+ * - Template caching: Compiled Handlebars templates are cached globally
+ * - LRU eviction: Old templates are evicted when cache is full
  */
 export class WorkflowContext {
   private context: ExecutionContext;
+  private templateCache: TemplateCache;
 
   constructor(input: Record<string, unknown> = {}) {
     this.context = {
@@ -17,6 +85,8 @@ export class WorkflowContext {
       steps: {},
       env: process.env as Record<string, string>,
     };
+    // Use shared global cache for better cross-execution performance
+    this.templateCache = globalTemplateCache;
   }
 
   /**
@@ -56,13 +126,18 @@ export class WorkflowContext {
   /**
    * Interpolate variables in a value using Handlebars
    * Supports: {{ input.fieldName }}, {{ steps.stepName.output.field }}, {{ env.VAR_NAME }}
+   *
+   * OPTIMIZATION: Uses template cache to avoid recompiling same templates.
+   * For 100+ step workflows with similar patterns, this can eliminate
+   * thousands of redundant Handlebars.compile() calls.
    */
   interpolate(value: unknown): unknown {
     if (typeof value === 'string') {
       try {
         // Check if the string contains Handlebars expressions
         if (value.includes('{{')) {
-          const template = Handlebars.compile(value);
+          // OPTIMIZATION: Use cached template instead of recompiling
+          const template = this.templateCache.get(value);
           const result = template(this.context);
 
           // Try to parse as JSON if it looks like a JSON structure
@@ -92,6 +167,13 @@ export class WorkflowContext {
       return result;
     }
     return value;
+  }
+
+  /**
+   * Get template cache statistics (for debugging/monitoring)
+   */
+  getTemplateCacheStats(): { size: number; maxSize: number } {
+    return this.templateCache.stats();
   }
 
   /**

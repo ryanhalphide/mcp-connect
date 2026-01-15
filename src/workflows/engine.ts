@@ -19,6 +19,22 @@ import { BudgetEnforcer } from '../budgets/budgetEnforcer.js';
 const logger = createChildLogger({ module: 'workflow-engine' });
 
 /**
+ * Step execution result for batch processing
+ */
+interface StepResult {
+  stepId: string;
+  stepIndex: number;
+  stepName: string;
+  status: StepStatus;
+  output?: unknown;
+  error?: string;
+  retryCount: number;
+  costData?: StepCostData;
+  startedAt: string;
+  completedAt?: string;
+}
+
+/**
  * Workflow orchestration engine
  * Manages workflow execution, state persistence, and error handling
  */
@@ -33,6 +49,74 @@ export class WorkflowEngine {
     this.executor = new WorkflowExecutor();
     this.keyGuardian = new KeyGuardian(db);
     this.budgetEnforcer = new BudgetEnforcer(db);
+  }
+
+  /**
+   * Batch insert step records in a single transaction
+   * Reduces N inserts to 1 transaction
+   *
+   * For 100+ step workflows, this reduces database I/O from N separate
+   * INSERT operations to a single atomic transaction.
+   */
+  private batchCreateSteps(
+    executionId: string,
+    steps: Array<{ stepIndex: number; stepName: string; status: StepStatus }>
+  ): string[] {
+    const stepIds: string[] = [];
+
+    const transaction = this.db.transaction(() => {
+      const insertStmt = this.db.prepare(`
+        INSERT INTO workflow_execution_steps (id, execution_id, step_index, step_name, status, started_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+
+      for (const step of steps) {
+        const stepId = randomBytes(16).toString('hex');
+        const startedAt = step.status === 'running' ? new Date().toISOString() : null;
+        insertStmt.run(stepId, executionId, step.stepIndex, step.stepName, step.status, startedAt);
+        stepIds.push(stepId);
+      }
+    });
+
+    transaction();
+    return stepIds;
+  }
+
+  /**
+   * Batch update step records in a single transaction
+   * Reduces N updates to 1 transaction
+   *
+   * For 100+ step workflows, this reduces database I/O from N separate
+   * UPDATE operations to a single atomic transaction.
+   */
+  private batchUpdateSteps(results: StepResult[]): void {
+    if (results.length === 0) return;
+
+    const transaction = this.db.transaction(() => {
+      const updateStmt = this.db.prepare(`
+        UPDATE workflow_execution_steps
+        SET status = ?, output_json = ?, error = ?, retry_count = ?, completed_at = ?,
+            tokens_used = ?, cost_credits = ?, model_name = ?, duration_ms = ?
+        WHERE id = ?
+      `);
+
+      for (const result of results) {
+        updateStmt.run(
+          result.status,
+          result.output !== undefined ? JSON.stringify(result.output) : null,
+          result.error || null,
+          result.retryCount,
+          result.completedAt || null,
+          result.costData?.tokensUsed || 0,
+          result.costData?.costCredits || 0,
+          result.costData?.modelName || null,
+          result.costData?.durationMs || null,
+          result.stepId
+        );
+      }
+    });
+
+    transaction();
   }
 
   /**
@@ -125,7 +209,15 @@ export class WorkflowEngine {
   }
 
   /**
-   * Execute a workflow
+   * Execute a workflow with optimized batch database operations
+   *
+   * Performance optimizations:
+   * 1. Pre-allocate all step records in a single transaction
+   * 2. Collect step results in memory during execution
+   * 3. Batch update all step records in a single transaction at the end
+   *
+   * This reduces database writes from 2N (N inserts + N updates) to 2 transactions
+   * for workflows with 100+ steps.
    */
   async executeWorkflow(
     workflowId: string,
@@ -162,12 +254,27 @@ export class WorkflowEngine {
 
     stmt.run(executionId, workflowId, 'running', JSON.stringify(input || {}), startedAt, triggeredBy || null);
 
-    logger.info({ executionId, workflowId, workflowName: workflow.name }, 'Starting workflow execution');
+    const stepCount = workflow.definition.steps.length;
+    logger.info(
+      { executionId, workflowId, workflowName: workflow.name, stepCount },
+      'Starting workflow execution'
+    );
 
     // Create execution context
     const context = new WorkflowContext(input || {});
 
-    // Track costs across all steps
+    // OPTIMIZATION: Pre-allocate all step records in a single transaction
+    const stepsToCreate = workflow.definition.steps.map((step, index) => ({
+      stepIndex: index,
+      stepName: step.name,
+      status: 'pending' as StepStatus,
+    }));
+
+    const stepIds = this.batchCreateSteps(executionId, stepsToCreate);
+    logger.debug({ executionId, stepCount }, 'Batch created step records');
+
+    // Track step results for batch update
+    const stepResults: StepResult[] = [];
     const stepCosts: StepCostData[] = [];
 
     try {
@@ -176,20 +283,28 @@ export class WorkflowEngine {
 
       for (let i = 0; i < workflow.definition.steps.length; i++) {
         const step = workflow.definition.steps[i];
+        const stepId = stepIds[i];
+        const stepStartedAt = new Date().toISOString();
 
         // Check if step has a condition
         if (step.condition && !context.evaluateCondition(step.condition)) {
           logger.info({ executionId, stepName: step.name }, 'Skipping step due to condition');
-          await this.createExecutionStep(executionId, i, step.name, 'skipped');
+          stepResults.push({
+            stepId,
+            stepIndex: i,
+            stepName: step.name,
+            status: 'skipped',
+            retryCount: 0,
+            startedAt: stepStartedAt,
+            completedAt: stepStartedAt,
+          });
           continue;
         }
-
-        // Create step record
-        const stepId = await this.createExecutionStep(executionId, i, step.name, 'running');
 
         try {
           // Execute step with retry if configured
           const result = await this.executor.executeWithRetry(step, context, step.retryConfig);
+          const stepCompletedAt = new Date().toISOString();
 
           if (result.success) {
             // Track cost data if available
@@ -197,8 +312,18 @@ export class WorkflowEngine {
               stepCosts.push(result.costData);
             }
 
-            // Update step as completed
-            await this.updateExecutionStep(stepId, 'completed', result.output, undefined, result.retries, result.costData);
+            // Store result for batch update
+            stepResults.push({
+              stepId,
+              stepIndex: i,
+              stepName: step.name,
+              status: 'completed',
+              output: result.output,
+              retryCount: result.retries,
+              costData: result.costData,
+              startedAt: stepStartedAt,
+              completedAt: stepCompletedAt,
+            });
 
             // Store output in context
             context.setStepOutput(step.name, result.output);
@@ -206,26 +331,56 @@ export class WorkflowEngine {
 
             logger.info({ executionId, stepName: step.name, retries: result.retries }, 'Step completed');
           } else {
-            // Handle step failure based on error strategy
-            await this.updateExecutionStep(stepId, 'failed', undefined, result.error, result.retries, result.costData);
+            // Store failure result for batch update
+            stepResults.push({
+              stepId,
+              stepIndex: i,
+              stepName: step.name,
+              status: 'failed',
+              error: result.error,
+              retryCount: result.retries,
+              costData: result.costData,
+              startedAt: stepStartedAt,
+              completedAt: stepCompletedAt,
+            });
+
             context.setStepError(step.name, result.error || 'Unknown error');
 
             const errorStrategy = step.onError || 'stop';
 
             if (errorStrategy === 'stop') {
+              // Batch update all results collected so far before throwing
+              this.batchUpdateSteps(stepResults);
               throw new Error(`Step "${step.name}" failed: ${result.error}`);
             } else if (errorStrategy === 'continue') {
               logger.warn({ executionId, stepName: step.name, error: result.error }, 'Step failed, continuing');
               output[step.name] = { error: result.error };
             }
-            // 'retry' is handled by executeWithRetry
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          await this.updateExecutionStep(stepId, 'failed', undefined, errorMessage, 0);
+
+          // Check if this error was already recorded (from errorStrategy === 'stop')
+          if (!stepResults.find(r => r.stepId === stepId)) {
+            stepResults.push({
+              stepId,
+              stepIndex: i,
+              stepName: step.name,
+              status: 'failed',
+              error: errorMessage,
+              retryCount: 0,
+              startedAt: stepStartedAt,
+              completedAt: new Date().toISOString(),
+            });
+            this.batchUpdateSteps(stepResults);
+          }
           throw error;
         }
       }
+
+      // OPTIMIZATION: Batch update all step records in a single transaction
+      this.batchUpdateSteps(stepResults);
+      logger.debug({ executionId, resultCount: stepResults.length }, 'Batch updated step records');
 
       // Aggregate costs from all steps
       const aggregatedCosts = stepCostTracker.aggregateCosts(stepCosts);
@@ -240,6 +395,7 @@ export class WorkflowEngine {
         {
           executionId,
           workflowId,
+          stepCount,
           totalCost: aggregatedCosts.totalCost,
           totalTokens: aggregatedCosts.totalTokens
         },
@@ -478,20 +634,27 @@ export class WorkflowEngine {
   listExecutions(
     workflowId?: string,
     options: { limit?: number; offset?: number; status?: WorkflowStatus } = {}
-  ): { executions: WorkflowExecution[]; total: number } {
+  ): { executions: (WorkflowExecution & { totalCostCredits?: number; totalTokensUsed?: number })[]; total: number } {
     const { limit = 50, offset = 0, status } = options;
 
-    let sql = 'SELECT * FROM workflow_executions';
+    let sql = `
+      SELECT
+        we.*,
+        COALESCE(SUM(wes.cost_credits), 0) as total_cost_credits,
+        COALESCE(SUM(wes.tokens_used), 0) as total_tokens_used
+      FROM workflow_executions we
+      LEFT JOIN workflow_execution_steps wes ON we.id = wes.execution_id
+    `;
     const params: unknown[] = [];
     const conditions: string[] = [];
 
     if (workflowId) {
-      conditions.push('workflow_id = ?');
+      conditions.push('we.workflow_id = ?');
       params.push(workflowId);
     }
 
     if (status) {
-      conditions.push('status = ?');
+      conditions.push('we.status = ?');
       params.push(status);
     }
 
@@ -499,7 +662,7 @@ export class WorkflowEngine {
       sql += ' WHERE ' + conditions.join(' AND ');
     }
 
-    sql += ' ORDER BY started_at DESC LIMIT ? OFFSET ?';
+    sql += ' GROUP BY we.id ORDER BY we.started_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
 
     const stmt = this.db.prepare(sql);
@@ -513,6 +676,8 @@ export class WorkflowEngine {
       started_at: string;
       completed_at: string | null;
       triggered_by: string | null;
+      total_cost_credits: number;
+      total_tokens_used: number;
     }>;
 
     const executions = rows.map((row) => ({
@@ -525,14 +690,25 @@ export class WorkflowEngine {
       startedAt: new Date(row.started_at),
       completedAt: row.completed_at ? new Date(row.completed_at) : undefined,
       triggeredBy: row.triggered_by || undefined,
+      totalCostCredits: row.total_cost_credits,
+      totalTokensUsed: row.total_tokens_used,
     }));
 
     let countSql = 'SELECT COUNT(*) as count FROM workflow_executions';
     const countParams: unknown[] = [];
 
-    if (conditions.length > 0) {
-      countSql += ' WHERE ' + conditions.join(' AND ');
-      countParams.push(...params.slice(0, conditions.length));
+    if (workflowId || status) {
+      countSql += ' WHERE ';
+      const countConditions: string[] = [];
+      if (workflowId) {
+        countConditions.push('workflow_id = ?');
+        countParams.push(workflowId);
+      }
+      if (status) {
+        countConditions.push('status = ?');
+        countParams.push(status);
+      }
+      countSql += countConditions.join(' AND ');
     }
 
     const countStmt = this.db.prepare(countSql);
